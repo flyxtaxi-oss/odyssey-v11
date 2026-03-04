@@ -1,0 +1,175 @@
+{
+  "version": 1,
+  "skills": {
+    "Builder": {
+      "source": "aj-geddes/claude-code-bmad-skills",
+      "sourceType": "github",
+      "computedHash": "aaf93c891d5d0643809a76a23d85d0d4ee3c9fe9cc5ec5afae7e4d7fd6543212"
+    },
+    "agent-browser": {
+      "source": "vercel-labs/agent-browser",
+      "sourceType": "github",
+      "computedHash": "2f771f8eb25f9856d2169a4de4766de94e2bdbff999f42c458c8f1e2ca405c03"
+    },
+    "appinsights-instrumentation": {
+      "source": "microsoft/github-copilot-for-azure",
+      "sourceType": "github",
+      "computedHash": "fe35ac0f5795ac1fcdc0ba272c8853db39e27437ff3e041446ec04392e833462"
+    },
+    "azure-ai": {
+      "source": "microsoft/github-copilot-for-azure",
+      "sourceType": "github",
+      "computedHash": "f34234a312d9fcaf61270ca9f9e196339494234b0e1749a7bf4e52eb4e6198fd"
+    },
+    "azure-ai-agents-persistent-dotnet": {
+      "source": "microsoft/agent-skills",
+      "sourceType": "github",
+      "computedHash": "35ad230582849b14126357e948d027ce9ec7ddc45ce158e592f2c8d3f532d06a"
+    },
+    "azure-aigateway": {
+      "source": "microsoft/github-copilot-for-azure",
+      "sourceType": "github",
+      "computedHash": "3a8264a6a9d1704a15495580310a220a06b0da0fd216a6737389bd015f5b58eb"
+    },
+    "azure-compliance": {
+      "source": "microsoft/github-copilot-for-azure",
+      "sourceType": "github",
+      "computedHash": "726cc4fbb868e420a0eb399c2d2ffed70f45794392556518c95a0bc109ceaf3e"
+    },
+    "azure-cost-optimization": {
+      "source": "microsoft/github-copilot-for-azure",
+      "sourceType": "github",
+      "computedHash": "bab4bdf9eb17ea546f2a008eb29450706b450a6863bdf07f0dbe792ecf4dfaef"
+    },
+    "azure-deploy": {
+      "source": "microsoft/github-copilot-for-azure",
+      "sourceType": "github",
+      "computedHash": "961dfe59e5e926ac7f89296ccc127e4dca7fe44e45bf85700faf0e60459b67cb"
+    },
+    "azure-diagnostics": {
+      "source": "microsoft/github-copilot-for-azure",
+      "sourceType": "github",
+      "computedHash": "f6167b7822d91d44d4df4576156c9cc6c43ca515ccbaa6419726622a92fd231d"
+    },
+    "azure-messaging": {
+      "source": "microsoft/github-copilot-for-azure",
+      "sourceType": "github",
+      "computedHash": "055db15ec3404634e8f8fbac0906ae34a571f8b2c2f556c335c13e1fb47b868f"
+    },
+    "azure-observability": {
+      "source": "microsoft/github-copilot-for-azure",
+      "sourceType": "github",
+      "computedHash": "b54ddafbcfa6ee999388d078a427a0fe3a0c908004f7aa8f801b0ca613c43baf"
+    },
+    "azure-prepare": {
+      "source": "microsoft/github-copilot-for-azure",
+      "sourceType": "github",
+      "computedHash": "3856726dc361803e294f216d25c84f731e3212305a47bd3d2bf217ac299b5f40"
+    },
+    "azure-rbac": {
+      "source": "microsoft/github-copilot-for-azure",
+      "sourceType": "github",
+      "computedHash": "864b0611322272ebb12f6847d1c258f5eaf894a9b2892e211ff58e1ee447c36f"
+    },
+    "azure-resource-lookup": {
+      "source": "microsoft/github-copilot-for-azure",
+      "sourceType": "github",
+      "computedHash": "3fff4b683a6e0de2249addb108c5fc9cb62fd6b8ad2989eb09b610e36f8c42af"
+    },
+    "azure-resource-visualizer": {
+      "source": "microsoft/github-copilot-for-azure",
+      "sourceType": "github",
+      "computedHash": "20dff43e439c5a7e6dd27dc7f103e3da56ced2d45042296d22fb9308dce7ecd8"
+    },
+    "azure-storage": {
+      "source": "microsoft/github-copilot-for-azure",
+      "sourceType": "github",
+      "computedHash": "affe91c35f86df66e4324bde9f302f75cfcd9b212d8a9d87271a118f5f6e5263"
+    },
+    "azure-validate": {
+      "source": "microsoft/github-copilot-for-azure",
+      "sourceType": "github",
+      "computedHash": "bad019e09693142bc398414ea6dd94a9e9ab0eff382fda6437a7cc0866956438"
+    },
+    "bmad-os-audit-file-refs": {
+      "source": "bmad-code-org/BMAD-METHOD",
+      "sourceType": "github",
+      "computedHash": "d1cc5ce41906582b714a9477395139043824a371e260747c9c8f493c89ea570e"
+    },
+    "bmad-os-changelog-social": {
+      "source": "bmad-code-org/BMAD-METHOD",
+      "sourceType": "github",
+      "computedHash": "f1ab1224283c5ea8ae5ecae49f3461c6e50ba9dca73a5f74f5ab0e0a8c5a1446"
+    },
+    "bmad-os-diataxis-style-fix": {
+      "source": "bmad-code-org/BMAD-METHOD",
+      "sourceType": "github",
+      "computedHash": "e3d7fbf6ed08693a3aa661cb8720635133e45a18995500c0cc41d5649b56895b"
+    },
+    "bmad-os-draft-changelog": {
+      "source": "bmad-code-org/BMAD-METHOD",
+      "sourceType": "github",
+      "computedHash": "2f67d93aa4ff48d7d3edab3034ce3030e921a3389a702df8150228ffcbf42080"
+    },
+    "bmad-os-gh-triage": {
+      "source": "bmad-code-org/BMAD-METHOD",
+      "sourceType": "github",
+      "computedHash": "7fda1edcc36a589557fa7e006c40fd8c619c914b15dbd81f999b87d90dd43b48"
+    },
+    "bmad-os-release-module": {
+      "source": "bmad-code-org/BMAD-METHOD",
+      "sourceType": "github",
+      "computedHash": "8894dfeea3415b5c9addffcee597bfc430c1be2bb5c55b5cbb6537e4b582ff23"
+    },
+    "bmad-os-review-pr": {
+      "source": "bmad-code-org/BMAD-METHOD",
+      "sourceType": "github",
+      "computedHash": "0be6c254fa2f7b2b6c1c7b345dd28ff7136354c3483f8ed709585dbab443f3f5"
+    },
+    "bmad-os-root-cause-analysis": {
+      "source": "bmad-code-org/BMAD-METHOD",
+      "sourceType": "github",
+      "computedHash": "efc2b49c4141f7b925e04b37aadafcbac9d9e229fd1bfc13de13bf76f3e2f57f"
+    },
+    "builder": {
+      "source": "aj-geddes/claude-code-bmad-skills",
+      "sourceType": "github",
+      "computedHash": "760a6c215d1adedea79a8a0ab3377fd5c338f463c42ead88b0b54fc56cbc480b"
+    },
+    "entra-app-registration": {
+      "source": "microsoft/github-copilot-for-azure",
+      "sourceType": "github",
+      "computedHash": "61a27f7f19b48e18ab05b75ac29bc555eb2163df0259c1d6c9bd23c8ba93a5ac"
+    },
+    "find-skills": {
+      "source": "vercel-labs/skills",
+      "sourceType": "github",
+      "computedHash": "6412eb4eb3b91595ebab937f0c69501240e7ba761b3d82510b5cf506ec5c7adc"
+    },
+    "frontend-design": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "computedHash": "063a0e6448123cd359ad0044cc46b0e490cc7964d45ef4bb9fd842bd2ffbca67"
+    },
+    "microsoft-foundry": {
+      "source": "microsoft/github-copilot-for-azure",
+      "sourceType": "github",
+      "computedHash": "35e7337592c155c8e5ac10432a88f1ab637325045b10a7e338891ff33e701a4a"
+    },
+    "remotion-best-practices": {
+      "source": "remotion-dev/skills",
+      "sourceType": "github",
+      "computedHash": "9851afb52e1b892c43b2af973bda1776ce01fedfdfe704e0cfd70069a3a9c300"
+    },
+    "vercel-composition-patterns": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "computedHash": "f98931159fa9c7fed043bcd18a891a46dcf89ababa38df13a4c5b7b30dc0ce07"
+    },
+    "vercel-react-best-practices": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "computedHash": "4365be772fd3b41994a72ad478472c6d680678e7f3859860ab010e9c46e48ee0"
+    }
+  }
+}
