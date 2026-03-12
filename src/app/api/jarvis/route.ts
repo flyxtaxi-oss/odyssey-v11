@@ -10,6 +10,8 @@ import {
     selectModel,
     getCacheStats,
 } from "@/lib/ai-engine";
+import { checkPromptInjection, logAuditEntry, getSecurityHeaders } from "@/lib/security";
+import { detectLanguage, getJarvisLocaleInstruction } from "@/lib/i18n";
 
 // ==============================================================================
 // J.A.R.V.I.S. — AI Chat Endpoint (Streaming)
@@ -71,10 +73,55 @@ export async function POST(req: Request) {
                         "Content-Type": "application/json",
                         "Retry-After": String(Math.ceil(rateCheck.resetMs / 1000)),
                         "X-RateLimit-Remaining": "0",
+                        ...getSecurityHeaders(),
                     },
                 }
             );
         }
+
+        // ─── Security: Prompt Injection Check ─────────────────────
+        const lastUserMessage = messages?.filter((m: { role: string }) => m.role === "user").pop();
+        if (lastUserMessage) {
+            const secCheck = checkPromptInjection(lastUserMessage.content);
+            if (secCheck.blocked) {
+                logAuditEntry({
+                    userId,
+                    action: "chat",
+                    toolName: "jarvis",
+                    input: lastUserMessage.content.slice(0, 200),
+                    result: "blocked",
+                    injectionDetected: true,
+                    severity: secCheck.severity,
+                    details: secCheck.detectedPatterns.join(", "),
+                });
+                return new Response(
+                    JSON.stringify({
+                        error: "Ta demande contient un schéma non autorisé. Reformule ta question.",
+                        blocked: true,
+                    }),
+                    { status: 400, headers: { "Content-Type": "application/json", ...getSecurityHeaders() } }
+                );
+            }
+            // Log warning for medium severity but allow
+            if (secCheck.severity === "medium") {
+                logAuditEntry({
+                    userId,
+                    action: "chat_warning",
+                    toolName: "jarvis",
+                    input: lastUserMessage.content.slice(0, 200),
+                    result: "success",
+                    injectionDetected: true,
+                    severity: secCheck.severity,
+                    details: secCheck.detectedPatterns.join(", "),
+                });
+            }
+        }
+
+        // ─── i18n: Auto-detect language ───────────────────────────
+        const detectedLocale = lastUserMessage
+            ? detectLanguage(lastUserMessage.content)
+            : "fr";
+        const localeInstruction = getJarvisLocaleInstruction(detectedLocale);
 
         // ─── Cache Check ───────────────────────────────────────────
         const cached = getCachedResponse(messages, persona);
@@ -106,6 +153,7 @@ export async function POST(req: Request) {
         const fullSystemPrompt = [
             SYSTEM_PROMPT,
             `\nPersona active: ${personaPrompt}`,
+            `\n${localeInstruction}`,
             memoryContext ? `\nMémoire contextuelle:\n${memoryContext}` : "",
         ]
             .filter(Boolean)
