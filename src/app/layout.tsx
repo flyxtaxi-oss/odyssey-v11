@@ -4,6 +4,7 @@ import Sidebar from "@/components/Sidebar";
 import CommandCenter from "@/components/CommandCenter";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://odyssey.ai"),
   title: "Odyssey.ai — Life Operating System",
   description:
     "Le premier Life Operating System dopé à l'IA. Expatriation, finance, carrière, réseau — tout piloté par J.A.R.V.I.S., votre intelligence artificielle personnelle.",
@@ -36,14 +37,21 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
-  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Odyssey.ai",
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
-  themeColor: "#070B14",
+  themeColor: "#0b0e14",
 };
 
 export default function RootLayout({
@@ -57,21 +65,16 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
-      <body className="relative">
-        {/* V9 Ultra-Futuristic Visual Layers */}
-        <div className="mesh-bg">
-          <div className="mesh-blob cyan" />
-          <div className="mesh-blob indigo" />
-        </div>
+      <body className="relative overflow-x-hidden antialiased">
+        {/* Stitch DeepSpace Atmospheric Layers */}
         <div className="tech-grid" />
-        <div className="noise" />
 
         <div className="relative z-10 flex min-h-screen">
           <Sidebar />
-          {/* Spacer div to push content past the fixed sidebar */}
-          <div className="w-[300px] shrink-0" />
-          <main className="flex-1 min-w-0">
-            <div className="max-w-[1100px] mx-auto px-8 py-10">
+          {/* Spacer div to push content past the fixed sidebar - Hidden on mobile */}
+          <div className="hidden md:block w-[300px] shrink-0" />
+          <main className="flex-1 min-w-0 pb-24 md:pb-0">
+            <div className="w-full max-w-[1100px] mx-auto px-4 sm:px-6 md:px-8 py-6 md:py-10">
               {children}
             </div>
           </main>

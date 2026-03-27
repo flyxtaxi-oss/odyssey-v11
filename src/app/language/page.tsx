@@ -42,7 +42,7 @@ export default function LanguageLabPage() {
                     </div>
                     <h2 className="text-3xl font-bold text-[var(--text-0)]">Review Complete!</h2>
                     <p className="text-[var(--text-2)] max-w-md">You've successfully reviewed all your due flashcards. +50 XP</p>
-                    <button onClick={() => setLearningMode('idle')} className="btn-sci-fi rounded-full px-8 py-4 text-lg mt-6">
+                    <button onClick={() => setLearningMode('idle')} className="btn-stitch rounded-full px-8 py-4 text-lg mt-6">
                         Return to Dashboard
                     </button>
                 </div>
@@ -115,7 +115,7 @@ export default function LanguageLabPage() {
         <div className="max-w-4xl mx-auto py-10 h-[70vh] flex flex-col">
             <div className="flex justify-between items-center mb-6">
                 <button className="btn-ghost-glow" onClick={() => setLearningMode('idle')}>End Session</button>
-                <div className="text-sm font-bold uppercase tracking-wider text-[var(--accent-indigo)] flex items-center gap-2">
+                <div className="text-sm font-bold uppercase tracking-wider text-[var(--primary)] flex items-center gap-2">
                     <MessageSquare className="w-4 h-4" />
                     Roleplay: Job Interview
                 </div>
@@ -125,8 +125,8 @@ export default function LanguageLabPage() {
             <div className="flex-1 glass-panel p-6 flex flex-col">
                 <div className="flex-1 overflow-y-auto space-y-6 p-4 custom-scroll">
                     <div className="flex items-start gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-[var(--accent-indigo)]/20 flex items-center justify-center shrink-0">
-                            <span className="font-bold text-[var(--accent-indigo)]">AI</span>
+                        <div className="w-10 h-10 rounded-xl bg-[var(--primary)]/20 flex items-center justify-center shrink-0">
+                            <span className="font-bold text-[var(--primary)]">AI</span>
                         </div>
                         <div className="bg-[var(--bg-3)] p-4 rounded-2xl rounded-tl-sm text-[var(--text-1)]">
                             Welcome to the interview. Could you please start by telling me a little bit about your background and your most recent role?
@@ -134,14 +134,14 @@ export default function LanguageLabPage() {
                     </div>
 
                     <div className="flex items-end gap-4 justify-end">
-                        <div className="bg-[var(--accent-indigo)] p-4 rounded-2xl rounded-tr-sm text-white max-w-[80%] shadow-lg">
+                        <div className="bg-[var(--primary)] p-4 rounded-2xl rounded-tr-sm text-[var(--bg-0)] max-w-[80%] shadow-lg">
                             Thank you. I have been working as a software engineer for the past 4 years, mainly focusing on frontend development with React.
                         </div>
                     </div>
 
                     <div className="flex items-start gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-[var(--accent-indigo)]/20 flex items-center justify-center shrink-0">
-                            <span className="font-bold text-[var(--accent-indigo)]">AI</span>
+                        <div className="w-10 h-10 rounded-xl bg-[var(--primary)]/20 flex items-center justify-center shrink-0">
+                            <span className="font-bold text-[var(--primary)]">AI</span>
                         </div>
                         <div className="bg-[var(--bg-3)] p-4 rounded-2xl rounded-tl-sm text-[var(--text-1)]">
                             That's great. What would you say was your biggest technical challenge in your last React project, and how did you overcome it?
@@ -159,7 +159,7 @@ export default function LanguageLabPage() {
                         placeholder="Type your response or use voice..."
                         className="input-sci-fi flex-1 rounded-full px-6 py-3"
                     />
-                    <button title="Send" className="rounded-full w-12 h-12 p-0 flex items-center justify-center bg-[var(--accent-indigo)] hover:brightness-110 text-white transition-all shadow-lg hover:shadow-[0_0_15px_rgba(37,99,235,0.5)]">
+                    <button title="Send" className="rounded-full w-12 h-12 p-0 flex items-center justify-center bg-[var(--primary)] hover:brightness-110 text-[var(--bg-0)] transition-all shadow-lg hover:shadow-[0_0_15px_rgba(143,245,255,0.3)]">
                         <ArrowRight className="w-5 h-5" />
                     </button>
                 </div>
@@ -173,7 +173,7 @@ export default function LanguageLabPage() {
             {learningMode === 'idle' && (
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
                     <div>
-                        <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-2 text-[var(--text-0)]">Language Lab</h1>
+                        <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-2 text-[var(--text-0)] font-display">Language Lab</h1>
                         <p className="text-[var(--text-3)] text-lg">Master a new language with JARVIS precision.</p>
                     </div>
                     <button onClick={() => setLearningMode('placement')} className="btn-ghost-glow border border-[var(--border-1)] rounded-full px-6 py-3 hover:bg-[var(--bg-3)]">
@@ -213,7 +213,7 @@ export default function LanguageLabPage() {
                                 <div className="glass-panel p-6 flex flex-col items-center justify-center text-center group">
                                     <div className="relative">
                                         <Flame className="w-8 h-8 text-[var(--accent-rose)] mb-3 group-hover:scale-110 transition-transform" />
-                                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-[var(--accent-magenta)] rounded-full animate-pulse" />
+                                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-[var(--tertiary)] rounded-full animate-pulse" />
                                     </div>
                                     <div className="text-2xl font-bold text-[var(--text-0)]">{MOCK_PROFILE.streak_days}</div>
                                     <div className="text-sm font-bold text-[var(--text-3)] uppercase tracking-wider mt-1">Day Streak</div>
@@ -232,7 +232,7 @@ export default function LanguageLabPage() {
                                     <button
                                         key={tab}
                                         onClick={() => setActiveTab(tab)}
-                                        className={`px-6 py-2 rounded-lg text-sm font-bold uppercase transition-all ${activeTab === tab ? 'bg-[var(--accent-indigo)] text-white shadow-md' : 'text-[var(--text-2)] hover:text-[var(--text-1)]'}`}
+                                        className={`px-6 py-2 rounded-lg text-sm font-bold uppercase transition-all ${activeTab === tab ? 'bg-[var(--primary)] text-[var(--bg-0)] shadow-md' : 'text-[var(--text-2)] hover:text-[var(--text-1)]'}`}
                                     >
                                         {tab}
                                     </button>
@@ -246,8 +246,8 @@ export default function LanguageLabPage() {
                                         <div className="absolute inset-0 bg-[var(--gradient-card-border)] opacity-10 group-hover:opacity-20 transition-opacity" />
                                         <div className="relative z-10">
                                             <div className="flex items-center gap-3 mb-4">
-                                                <div className="p-3 bg-[var(--accent-indigo)]/20 rounded-xl">
-                                                    <BookOpen className="w-6 h-6 text-[var(--accent-indigo)]" />
+                                                <div className="p-3 bg-[var(--primary)]/20 rounded-xl">
+                                                    <BookOpen className="w-6 h-6 text-[var(--primary)]" />
                                                 </div>
                                                 <div>
                                                     <h2 className="text-xl font-bold text-[var(--text-0)]">Daily Review</h2>
@@ -264,7 +264,7 @@ export default function LanguageLabPage() {
                                                 </div>
                                             </div>
                                             <button
-                                                className="btn-sci-fi w-full flex justify-center py-4"
+                                                className="btn-stitch w-full flex justify-center py-4"
                                                 onClick={() => {
                                                     setCurrentCardIndex(0);
                                                     setShowAnswer(false);
@@ -295,12 +295,12 @@ export default function LanguageLabPage() {
                                     {SCENARIOS.map(scenario => (
                                         <div
                                             key={scenario.id}
-                                            className="glass-panel p-6 flex flex-col justify-between cursor-pointer group hover:border-[var(--accent-indigo)] hover:shadow-[0_0_20px_rgba(37,99,235,0.1)] transition-all min-h-[220px]"
+                                            className="glass-panel p-6 flex flex-col justify-between cursor-pointer group hover:border-[var(--primary)] hover:shadow-[0_0_20px_rgba(143,245,255,0.08)] transition-all min-h-[220px]"
                                             onClick={() => setLearningMode('roleplay')}
                                         >
                                             <div>
                                                 <div className="flex justify-between items-start mb-5">
-                                                    <div className="p-3 bg-[var(--bg-3)] rounded-2xl group-hover:bg-[var(--accent-indigo)]/20 transition-colors">
+                                                    <div className="p-3 bg-[var(--bg-3)] rounded-2xl group-hover:bg-[var(--primary)]/20 transition-colors">
                                                         <span className="text-[var(--accent-cyan)]">{scenario.icon}</span>
                                                     </div>
                                                     <span className="tag-cyber">{scenario.level}</span>
@@ -310,7 +310,7 @@ export default function LanguageLabPage() {
                                                     {scenario.description}
                                                 </p>
                                             </div>
-                                            <div className="flex items-center text-[var(--accent-indigo)] text-sm font-bold uppercase tracking-wider mt-6 group-hover:translate-x-1 transition-transform">
+                                            <div className="flex items-center text-[var(--primary)] text-sm font-bold uppercase tracking-wider mt-6 group-hover:translate-x-1 transition-transform">
                                                 Start Scenario <ArrowRight className="w-4 h-4 ml-2" />
                                             </div>
                                         </div>
@@ -335,7 +335,7 @@ export default function LanguageLabPage() {
                                 <div className="absolute inset-0 bg-[var(--gradient-blue-purple)] opacity-10" />
                                 <h2 className="text-3xl font-extrabold text-[var(--text-0)] mb-4">Placement Test</h2>
                                 <p className="text-[var(--text-2)] mb-10 text-lg leading-relaxed">Take a precise, adaptive 10-minute AI assessment to calibrate your language level perfectly.</p>
-                                <button onClick={() => setLearningMode('idle')} className="btn-sci-fi px-8 py-4 text-lg">
+                                <button onClick={() => setLearningMode('idle')} className="btn-stitch px-8 py-4 text-lg">
                                     Start Assessment
                                 </button>
                             </div>

@@ -12,11 +12,11 @@ type Message = {
 };
 
 const personas = [
-    { id: "sage", emoji: "🧘", label: "Sage", color: "#A1A1AA", desc: "Introspection" },
-    { id: "strategist", emoji: "⚡", label: "Stratège", color: "#3B82F6", desc: "Analyse" },
-    { id: "coach", emoji: "🔥", label: "Coach", color: "#F43F5E", desc: "Motivation" },
-    { id: "executor", emoji: "🎯", label: "Exécuteur", color: "#10B981", desc: "Action" },
-    { id: "friend", emoji: "🤝", label: "Ami", color: "#8B5CF6", desc: "Empathie" },
+    { id: "sage", emoji: "🧘", label: "Sage", color: "var(--text-2)", desc: "Introspection" },
+    { id: "strategist", emoji: "⚡", label: "Stratège", color: "var(--primary)", desc: "Analyse" },
+    { id: "coach", emoji: "🔥", label: "Coach", color: "var(--tertiary)", desc: "Motivation" },
+    { id: "executor", emoji: "🎯", label: "Exécuteur", color: "var(--success)", desc: "Action" },
+    { id: "friend", emoji: "🤝", label: "Ami", color: "var(--secondary)", desc: "Empathie" },
 ];
 
 export default function JarvisPage() {
@@ -133,13 +133,13 @@ export default function JarvisPage() {
                             border: '1px solid var(--border-1)',
                             boxShadow: '0 2px 10px rgba(0,0,0,0.2)'
                         }}>
-                        <Brain className="w-5 h-5 text-[var(--accent-indigo)]" />
+                        <Brain className="w-5 h-5 text-[var(--primary)]" />
                     </div>
                     <div>
-                        <h1 className="text-[18px] font-semibold text-[var(--text-0)] tracking-wide">J.A.R.V.I.S.</h1>
+                        <h1 className="text-[18px] font-semibold text-[var(--text-0)] tracking-wide font-display">J.A.R.V.I.S.</h1>
                         <div className="flex items-center gap-2 mt-1">
                             <div className="w-1.5 h-1.5 rounded-full bg-[var(--text-2)]" />
-                            <span className="text-[11px] text-[var(--text-3)] font-medium uppercase tracking-wider">
+                            <span className="text-[11px] text-[var(--text-3)] font-medium uppercase tracking-wider font-label">
                                 Module: {currentPersona.label}
                             </span>
                         </div>
@@ -317,7 +317,7 @@ export default function JarvisPage() {
                                 whileTap={{ scale: 0.95 }}
                                 onClick={handleSend}
                                 disabled={!input.trim() || isLoading}
-                                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${input.trim() ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-[0_4px_15px_rgba(37,99,235,0.4)]' : 'bg-[var(--bg-3)] text-[var(--text-3)]'}`}
+                                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${input.trim() ? 'bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)] text-[var(--bg-0)] shadow-[0_4px_15px_rgba(143,245,255,0.25)]' : 'bg-[var(--bg-3)] text-[var(--text-3)]'}`}
                             >
                                 <Send className="w-4 h-4" />
                             </motion.button>

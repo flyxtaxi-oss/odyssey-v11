@@ -32,8 +32,8 @@ function Toggle({ enabled, onChange }: { enabled: boolean; onChange: () => void 
             onClick={onChange}
             className="w-11 h-[24px] rounded-full relative transition-all duration-300 shrink-0 outline-none"
             style={{
-                background: enabled ? "var(--accent-indigo)" : "var(--bg-3)",
-                border: enabled ? "1px solid var(--accent-indigo)" : "1px solid var(--border-1)",
+                background: enabled ? "var(--primary)" : "var(--bg-3)",
+                border: enabled ? "1px solid var(--primary)" : "1px solid var(--border-1)",
                 boxShadow: enabled ? "inset 0 1px 4px rgba(0,0,0,0.2)" : "inset 0 1px 3px rgba(0,0,0,0.5)",
             }}
         >
@@ -67,11 +67,11 @@ export default function SettingsPage() {
             {/* ─── Header ─── */}
             <motion.div variants={fadeUp} className="relative mt-2 text-center md:text-left">
                 <div className="inline-flex items-center gap-2 mb-4">
-                    <SettingsIcon className="w-4 h-4 text-[var(--accent-indigo)]" />
-                    <span className="section-label tracking-widest text-[var(--text-2)] font-mono-tech uppercase">Paramètres_Système_V9</span>
+                    <SettingsIcon className="w-4 h-4 text-[var(--primary)]" />
+                    <span className="section-label tracking-widest text-[var(--text-2)] font-mono-tech uppercase">Paramètres_Système_V10</span>
                 </div>
-                <h1 className="text-[clamp(2.5rem,5vw,3.5rem)] font-extrabold tracking-tight leading-[1] text-[var(--text-0)]">
-                    Configuration <span className="text-gradient-shimmer">Aurora</span>
+                <h1 className="text-[clamp(2.5rem,5vw,3.5rem)] font-extrabold tracking-tight leading-[1] text-[var(--text-0)] font-display">
+                    Configuration <span className="text-gradient-primary">DeepSpace</span>
                 </h1>
             </motion.div>
 
@@ -85,16 +85,16 @@ export default function SettingsPage() {
                         className="w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-bold relative bg-[var(--bg-2)] border border-[var(--border-2)] text-[var(--text-0)] shadow-[0_0_20px_rgba(255,255,255,0.05)]"
                     >
                         J
-                        <div className="absolute -bottom-1.5 -right-1.5 w-4 h-4 rounded-full bg-emerald-400 border-[2px] border-[var(--bg-1)]" />
+                        <div className="absolute -bottom-1.5 -right-1.5 w-4 h-4 rounded-full bg-[var(--success)] border-[2px] border-[var(--bg-1)]" />
                     </div>
                     <div className="flex-1">
                         <h2 className="text-[20px] font-bold text-[var(--text-0)] tracking-wide">Jibril</h2>
                         <div className="flex items-center gap-2 mt-1">
-                            <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded bg-gradient-to-r from-blue-600/20 to-purple-600/20 border border-blue-500/30 text-blue-400">EXECUTIVE</span>
+                            <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded bg-gradient-to-r from-[var(--primary)]/15 to-[var(--secondary)]/15 border border-[var(--primary)]/25 text-[var(--primary)]">EXECUTIVE</span>
                             <span className="text-[10px] text-[var(--text-3)] font-mono-tech uppercase tracking-widest">France 🇫🇷</span>
                         </div>
                     </div>
-                    <button className="btn-sci-fi px-4 py-2 text-[11px]">
+                    <button className="btn-stitch px-4 py-2 text-[11px]">
                         ÉDITER
                     </button>
                 </div>
@@ -105,7 +105,7 @@ export default function SettingsPage() {
                         { label: "CLASSE", value: "Opérateur Master" },
                         { label: "COORDONNÉES", value: "France 🇫🇷" },
                         { label: "UPTIME", value: "Février 2026" },
-                        { label: "NIVEAU", value: "V9 AURORA ✨" },
+                        { label: "NIVEAU", value: "V10 DEEPSPACE ✨" },
                     ].map((r) => (
                         <div key={r.label} className="flex justify-between py-3 group/row cursor-pointer hover:bg-[var(--bg-2)] -mx-4 px-4 rounded-lg transition-all border-b border-[var(--border-0)] last:border-0">
                             <span className="text-[11px] font-mono-tech uppercase tracking-widest text-[var(--text-3)]">{r.label}</span>
@@ -183,11 +183,11 @@ export default function SettingsPage() {
                     </div>
                     <div>
                         <h2 className="text-[16px] font-bold text-[var(--text-0)] tracking-wide">Interface Holographique</h2>
-                        <p className="text-[10px] text-[var(--text-3)] font-mono-tech uppercase tracking-widest mt-1">Esthétique V9 Midnight Aurora</p>
+                        <p className="text-[10px] text-[var(--text-3)] font-mono-tech uppercase tracking-widest mt-1">Esthétique V10 DeepSpace Nebula</p>
                     </div>
                 </div>
                 {[
-                    { label: "Design System", value: "V9 AURORA (Actif)", icon: Moon },
+                    { label: "Design System", value: "STITCH DEEPSPACE (Actif)", icon: Moon },
                     { label: "Langue Encodeur", value: "FR-FR", icon: Smartphone },
                     { label: "Particules & Mesh", value: "DÉSACTIVÉ (Clean)", icon: Zap },
                 ].map((r) => (
@@ -211,7 +211,7 @@ export default function SettingsPage() {
                     A R T É F A C T _ D É C O N N E X I O N
                 </button>
                 <p className="text-[10px] font-mono-tech uppercase tracking-widest text-[var(--text-3)] opacity-60">
-                    O D Y S S E Y _ O S <span className="text-gradient-shimmer font-bold ml-1">v 9 . 0 . 0</span>
+                    O D Y S S E Y _ O S <span className="text-gradient-primary font-bold ml-1">v 1 0 . 0 . 0</span>
                 </p>
                 <div className="h-px w-16 bg-gradient-to-r from-transparent via-[var(--text-1)] to-transparent mx-auto opacity-30" />
             </motion.div>

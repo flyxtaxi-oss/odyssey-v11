@@ -60,7 +60,7 @@ type RestaurantResult = {
     highlights: string[];
 };
 
-type Phase = "idle" | "planning" | "confirming" | "executing" | "done" | "error";
+type Phase = "idle" | "planning" | "confirming" | "executing" | "done" | "error" | "vision_analyzing";
 
 // ─── Suggestion chips ────────────────────────────────────────────────────────
 
@@ -80,6 +80,8 @@ export default function CommandCenter() {
     const [phase, setPhase] = useState<Phase>("idle");
     const [plan, setPlan] = useState<ActionPlan | null>(null);
     const [receipt, setReceipt] = useState<ActionReceipt | null>(null);
+    const [visionResult, setVisionResult] = useState<string | null>(null);
+    const [uploadedImage, setUploadedImage] = useState<string | null>(null);
     const [error, setError] = useState("");
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -110,6 +112,8 @@ export default function CommandCenter() {
         setPhase("idle");
         setPlan(null);
         setReceipt(null);
+        setVisionResult(null);
+        setUploadedImage(null);
         setError("");
     }, []);
 
@@ -117,7 +121,14 @@ export default function CommandCenter() {
 
     const handleSubmit = async (text?: string) => {
         const q = text || query;
-        if (!q.trim()) return;
+        if (!q.trim() && !uploadedImage) return;
+
+        // If an image is uploaded, use the Vision flow
+        if (uploadedImage) {
+            await handleVisionAnalysis(q, uploadedImage);
+            return;
+        }
+
         setQuery(q);
         setPhase("planning");
         setError("");
@@ -141,6 +152,41 @@ export default function CommandCenter() {
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : "Erreur de planification");
+            setPhase("error");
+        }
+    };
+
+    // ─── Vision Flow ──────────────────────────────────────────────────────────
+
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setUploadedImage(reader.result as string);
+            // Optionally auto-submit if an image is dropped
+            // handleVisionAnalysis(query, reader.result as string);
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const handleVisionAnalysis = async (q: string, base64Image: string) => {
+        setPhase("vision_analyzing");
+        setError("");
+        try {
+            const res = await fetch("/api/agent/vision", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ query: q, imageBase64: base64Image }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error);
+
+            setVisionResult(data.analysis);
+            setPhase("done");
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Erreur d'analyse d'image");
             setPhase("error");
         }
     };
@@ -179,7 +225,7 @@ export default function CommandCenter() {
             {/* Trigger button (always visible) */}
             <button
                 onClick={() => setIsOpen(true)}
-                className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-2xl
+                className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-2xl
           bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30
           hover:shadow-xl hover:shadow-indigo-500/40 hover:scale-105
           transition-all duration-300 group"
@@ -206,11 +252,11 @@ export default function CommandCenter() {
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: -20 }}
                             transition={{ type: "spring", damping: 25, stiffness: 400 }}
-                            className="fixed inset-x-0 top-[15vh] mx-auto z-[101] w-full max-w-[640px] px-4"
+                            className="fixed inset-x-0 top-[10vh] md:top-[15vh] mx-auto z-[101] w-full max-w-[640px] px-4"
                         >
                             <div className="rounded-2xl border border-white/10 bg-[#0D1117]/95 backdrop-blur-2xl shadow-2xl shadow-black/50 overflow-hidden">
                                 {/* Search input */}
-                                <div className="flex items-center gap-3 px-5 py-4 border-b border-white/5">
+                                <div className="flex items-center gap-3 px-5 py-4 border-b border-white/5 relative">
                                     {phase === "executing" ? (
                                         <Loader2 className="w-5 h-5 text-indigo-400 animate-spin shrink-0" />
                                     ) : phase === "done" ? (
@@ -223,17 +269,31 @@ export default function CommandCenter() {
                                         value={query}
                                         onChange={(e) => setQuery(e.target.value)}
                                         onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-                                        placeholder="Que puis-je faire pour toi ? (ex: trouve un japonais ce soir)"
-                                        className="flex-1 bg-transparent text-white text-[15px] placeholder:text-white/30 outline-none"
-                                        disabled={phase === "executing"}
+                                        placeholder="Que puis-je faire pour toi ? ou dépose une image..."
+                                        className="flex-1 bg-transparent text-white text-[15px] placeholder:text-white/30 outline-none pr-28"
+                                        disabled={phase === "executing" || phase === "vision_analyzing"}
                                     />
-                                    <button onClick={() => setIsOpen(false)} className="text-white/30 hover:text-white/60">
+                                    
+                                    <div className="absolute right-12 flex items-center gap-2">
+                                        <label className="cursor-pointer text-white/30 hover:text-indigo-400 transition-colors bg-white/5 hover:bg-white/10 p-1.5 rounded-lg">
+                                            <input 
+                                                type="file" 
+                                                className="hidden" 
+                                                accept="image/*"
+                                                onChange={handleImageUpload}
+                                                disabled={phase === "executing" || phase === "vision_analyzing"}
+                                            />
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                                        </label>
+                                    </div>
+
+                                    <button onClick={() => setIsOpen(false)} className="text-white/30 hover:text-white/60 ml-2">
                                         <X className="w-4 h-4" />
                                     </button>
                                 </div>
 
                                 {/* Content area */}
-                                <div className="max-h-[50vh] overflow-y-auto">
+                                <div className="max-h-[65vh] md:max-h-[50vh] overflow-y-auto">
                                     <AnimatePresence mode="wait">
                                         {/* ─── Idle: Suggestions ─────────────────────────── */}
                                         {phase === "idle" && (
@@ -335,8 +395,30 @@ export default function CommandCenter() {
                                             </motion.div>
                                         )}
 
+                                        {/* ─── Vision Analyzing ──────────────────────────────────── */}
+                                        {phase === "vision_analyzing" && (
+                                            <motion.div
+                                                key="vision_analyzing"
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                                exit={{ opacity: 0 }}
+                                                className="p-8 text-center"
+                                            >
+                                                <div className="relative w-16 h-16 mx-auto mb-4">
+                                                    {uploadedImage && (
+                                                        <img src={uploadedImage} alt="analyzing" className="w-full h-full object-cover rounded-xl opacity-50" />
+                                                    )}
+                                                    <div className="absolute inset-0 flex items-center justify-center">
+                                                        <Sparkles className="w-8 h-8 text-indigo-400 animate-pulse" />
+                                                    </div>
+                                                </div>
+                                                <Loader2 className="w-4 h-4 text-indigo-400 animate-spin mx-auto mb-2" />
+                                                <p className="text-sm text-white/50">JARVIS analyse votre image...</p>
+                                            </motion.div>
+                                        )}
+
                                         {/* ─── Done: Show results ─────────────────────────── */}
-                                        {phase === "done" && receipt && (
+                                        {phase === "done" && (receipt || visionResult) && (
                                             <motion.div
                                                 key="done"
                                                 initial={{ opacity: 0, y: 10 }}
@@ -344,7 +426,24 @@ export default function CommandCenter() {
                                                 exit={{ opacity: 0 }}
                                                 className="p-5"
                                             >
-                                                <ResultsView receipt={receipt} />
+                                                {visionResult ? (
+                                                    <div className="space-y-4">
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <Sparkles className="w-4 h-4 text-indigo-400" />
+                                                            <span className="text-sm text-indigo-400 font-medium">Analyse Visuelle</span>
+                                                        </div>
+                                                        {uploadedImage && (
+                                                            <div className="rounded-xl overflow-hidden border border-white/10 w-full max-h-48 flex justify-center bg-black/50">
+                                                                <img src={uploadedImage} alt="Uploaded" className="object-contain h-full" />
+                                                            </div>
+                                                        )}
+                                                        <div className="text-sm text-white/80 leading-relaxed whitespace-pre-wrap bg-white/5 p-4 rounded-xl">
+                                                            {visionResult}
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    receipt && <ResultsView receipt={receipt} />
+                                                )}
                                                 <div className="mt-4 flex gap-3">
                                                     <button
                                                         onClick={resetState}

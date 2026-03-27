@@ -12,6 +12,7 @@
     "@ai-sdk/anthropic": "^3.0.47",
     "@ai-sdk/google": "^3.0.31",
     "@ai-sdk/react": "^3.0.107",
+    "@google/stitch-sdk": "^0.0.3",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.97.0",
     "ai": "^6.0.99",

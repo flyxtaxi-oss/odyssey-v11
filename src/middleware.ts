@@ -2,7 +2,16 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export function middleware(request: NextRequest) {
+    // Extract country from Vercel's Edge headers or fallback to 'FR'
+    const country = request.headers.get("x-vercel-ip-country") || "FR";
     const response = NextResponse.next();
+
+    // Store user's country in a secure cookie
+    response.cookies.set('user-country', country, { 
+        path: '/',
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production'
+    });
 
     // ─── Security Headers (OWASP Best Practices) ────────────────────────
     response.headers.set("X-Frame-Options", "DENY");

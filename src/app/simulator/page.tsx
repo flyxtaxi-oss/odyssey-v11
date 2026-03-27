@@ -1,43 +1,60 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useCallback, useRef } from "react";
+import { motion, AnimatePresence, useSpring, useTransform, useMotionValue } from "framer-motion";
 import {
-    Globe,
-    DollarSign,
-    Home,
-    Briefcase,
-    Sun,
-    TrendingUp,
-    Plane,
-    Zap,
-    ArrowRight,
-    BarChart3,
-    ChevronRight,
-    Save,
-    Check,
-    Loader2,
+    Globe, DollarSign, Home, Briefcase, Sun, Plane, Zap, Check, Loader2, Save, TrendingUp, Activity
 } from "lucide-react";
 
+/* ─── 3D Tilt Card ─── */
+function TiltWrap({ children, className }: { children: React.ReactNode; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const mouseXSpring = useSpring(x, { stiffness: 300, damping: 30 });
+  const mouseYSpring = useSpring(y, { stiffness: 300, damping: 30 });
+  const rotateX = useTransform(mouseYSpring, [-0.5, 0.5], ["5deg", "-5deg"]);
+  const rotateY = useTransform(mouseXSpring, [-0.5, 0.5], ["-5deg", "5deg"]);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    x.set((e.clientX - rect.left) / rect.width - 0.5);
+    y.set((e.clientY - rect.top) / rect.height - 0.5);
+  };
+  const handleMouseLeave = () => { x.set(0); y.set(0); };
+
+  return (
+    <motion.div
+      ref={ref}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      style={{ rotateX, rotateY, transformStyle: "preserve-3d" }}
+      className={`relative h-full transition-shadow duration-500 hover:shadow-[0_0_50px_-15px_rgba(143,245,255,0.25)] ${className}`}
+    >
+      <div className="absolute inset-0 bg-[var(--bg-2)]/60 rounded-[20px] border border-[var(--border-0)] backdrop-blur-xl" />
+      <div className="absolute inset-0 rounded-[20px] bg-gradient-to-br from-white/[0.04] to-transparent pointer-events-none" />
+      <div
+        className="relative h-full p-8 flex flex-col justify-between"
+        style={{ transform: "translateZ(30px)" }}
+      >
+        {children}
+      </div>
+    </motion.div>
+  );
+}
+
 type Country = {
-    name: string;
-    flag: string;
-    salary: number;
-    tax: number;
-    cost: number;
-    visa: string;
-    climate: string;
-    score: number;
-    color: string;
+    name: string; flag: string; salary: number; tax: number; cost: number; visa: string; climate: string; score: number; color: string;
 };
 
 const countries: Country[] = [
-    { name: "France", flag: "🇫🇷", salary: 3800, tax: 30, cost: 1800, visa: "—", climate: "Tempéré", score: 65, color: "#6366f1" },
-    { name: "Portugal", flag: "🇵🇹", salary: 3200, tax: 20, cost: 1100, visa: "NHR / D7", climate: "☀️ Sommeil", score: 84, color: "var(--text-1)" },
-    { name: "Dubaï", flag: "🇦🇪", salary: 6500, tax: 0, cost: 2800, visa: "Golden Visa", climate: "🔥 Désert", score: 78, color: "var(--text-1)" },
-    { name: "Maroc", flag: "🇲🇦", salary: 2500, tax: 15, cost: 700, visa: "Libre", climate: "☀️ Soleil", score: 81, color: "var(--text-1)" },
-    { name: "Canada", flag: "🇨🇦", salary: 5200, tax: 28, cost: 2200, visa: "Express Entry", climate: "❄️ Froid", score: 72, color: "var(--text-1)" },
-    { name: "Thaïlande", flag: "🇹🇭", salary: 2800, tax: 10, cost: 600, visa: "DTV", climate: "🌴 Tropical", score: 88, color: "var(--text-1)" },
+    { name: "France", flag: "🇫🇷", salary: 3800, tax: 30, cost: 1800, visa: "—", climate: "Tempéré", score: 65, color: "var(--secondary)" },
+    { name: "Portugal", flag: "🇵🇹", salary: 3200, tax: 20, cost: 1100, visa: "NHR / D7", climate: "☀️ Sommeil", score: 84, color: "var(--primary)" },
+    { name: "Dubaï", flag: "🇦🇪", salary: 6500, tax: 0, cost: 2800, visa: "Golden Visa", climate: "🔥 Désert", score: 78, color: "var(--tertiary)" },
+    { name: "Maroc", flag: "🇲🇦", salary: 2500, tax: 15, cost: 700, visa: "Libre", climate: "☀️ Soleil", score: 81, color: "var(--error)" },
+    { name: "Canada", flag: "🇨🇦", salary: 5200, tax: 28, cost: 2200, visa: "Express Entry", climate: "❄️ Froid", score: 72, color: "var(--primary-dim)" },
+    { name: "Thaïlande", flag: "🇹🇭", salary: 2800, tax: 10, cost: 600, visa: "DTV", climate: "🌴 Tropical", score: 88, color: "var(--secondary-dim)" },
 ];
 
 const calcNet = (c: Country) => c.salary - (c.salary * c.tax) / 100 - c.cost;
@@ -68,250 +85,242 @@ export default function SimulatorPage() {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    destination: compare.name,
-                    score: compare.score,
-                    visa: compare.visa,
-                    salary: compare.salary,
-                    tax_rate: compare.tax,
-                    cost_of_living: compare.cost,
-                    climate: compare.climate,
-                    savings: calcNet(compare),
+                    destination: compare.name, score: compare.score, visa: compare.visa,
+                    salary: compare.salary, tax_rate: compare.tax, cost_of_living: compare.cost,
+                    climate: compare.climate, savings: calcNet(compare),
                 }),
             });
-            if (res.ok) {
-                setSaveStatus("saved");
-                setTimeout(() => setSaveStatus("idle"), 3000);
-            } else {
-                setSaveStatus("error");
-            }
-        } catch {
-            setSaveStatus("error");
-        } finally {
-            setIsSaving(false);
-        }
+            if (res.ok) { setSaveStatus("saved"); setTimeout(() => setSaveStatus("idle"), 3000); }
+            else setSaveStatus("error");
+        } catch { setSaveStatus("error"); }
+        finally { setIsSaving(false); }
     }, [compare]);
 
     return (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-10">
-            {/* ─── Header ─── */}
-            <div className="relative mt-2">
-                <div className="flex items-center gap-2 mb-4">
-                    <Globe className="w-4 h-4 text-[var(--accent-indigo)]" />
-                    <span className="section-label tracking-widest text-[var(--text-2)] font-mono-tech">MOTEUR_DE_DESTINÉE_V9</span>
-                </div>
-                <h1 className="text-[clamp(2.5rem,5vw,3.5rem)] font-extrabold tracking-tight leading-[1] text-[var(--text-0)]">
-                    Simulateur de <span className="text-gradient-shimmer" data-text="Trajectoire">Trajectoire</span>
-                </h1>
-                <p className="text-[14px] text-[var(--text-3)] font-mono-tech uppercase tracking-widest mt-4 max-w-lg leading-relaxed">
-                    Comparaison multi-factorielle. Base de destination vs Situation actuelle.
-                </p>
-                <div className="mt-6">
-                    <motion.button
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={handleSave}
-                        disabled={isSaving}
-                        className="btn-sci-fi text-[11px] px-5 py-2.5 flex items-center gap-2 disabled:opacity-50"
-                    >
-                        {isSaving ? (
-                            <><Loader2 className="w-3.5 h-3.5 animate-spin" /> SAUVEGARDE...</>
-                        ) : saveStatus === "saved" ? (
-                            <><Check className="w-3.5 h-3.5 text-emerald-400" /> SIMULATION SAUVEGARDÉE</>
-                        ) : (
-                            <><Save className="w-3.5 h-3.5" /> SAUVEGARDER SIMULATION</>
-                        )}
-                    </motion.button>
-                </div>
-            </div>
+        <div className="min-h-screen relative overflow-hidden">
+            {/* Stitch Nebula Background */}
+            <div className="absolute top-1/4 -right-1/4 w-[150%] h-[500px] bg-gradient-to-t from-[rgba(0,222,236,0.06)] via-[rgba(172,137,255,0.04)] to-transparent blur-3xl pointer-events-none" />
 
-            {/* ─── Country Selector ─── */}
-            <div className="flex flex-wrap gap-3">
-                {countries.slice(1).map((c, i) => (
-                    <motion.button
-                        key={c.name}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => setCompareIdx(i + 1)}
-                        className="relative px-5 py-3 rounded-2xl text-[13px] font-bold transition-all border overflow-hidden"
-                        style={{
-                            background: compareIdx === i + 1 ? "var(--bg-1)" : "var(--bg-0)",
-                            color: compareIdx === i + 1 ? "var(--text-0)" : "var(--text-2)",
-                            borderColor: compareIdx === i + 1 ? "var(--border-2)" : "var(--border-0)",
-                            boxShadow: compareIdx === i + 1 ? "0 4px 20px rgba(0,0,0,0.5)" : "none",
-                        }}
-                    >
-                        {compareIdx === i + 1 && (
-                            <motion.div
-                                layoutId="country-pill-v7"
-                                className="absolute inset-0 pointer-events-none"
-                                style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05)" }}
-                                transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                            />
-                        )}
-                        <span className="relative z-10 flex items-center gap-2">
-                            <span className="text-lg opacity-90">{c.flag}</span>
-                            <span className="tracking-wide">{c.name}</span>
-                            {compareIdx === i + 1 && (
-                                <motion.span
-                                    initial={{ opacity: 0, scale: 0.8 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    className="ml-2 text-[10px] font-mono-tech px-2 py-0.5 rounded border border-[var(--border-1)] text-[var(--text-0)] bg-[var(--bg-2)]"
-                                >
-                                    {c.score}%
-                                </motion.span>
-                            )}
-                        </span>
-                    </motion.button>
-                ))}
-            </div>
+            <div className="max-w-[1400px] mx-auto w-full px-4 sm:px-6 lg:px-8 pt-12 pb-20 relative z-10">
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-12">
 
-            {/* ─── Comparison Cards ─── */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                {/* Current */}
-                <div className="glass-panel p-8 space-y-5 bg-[var(--bg-1)] border-[var(--border-1)] shadow-none">
-                    <div className="flex items-center gap-4 pb-5 border-b border-[var(--border-0)]">
-                        <span className="text-3xl opacity-90">{current.flag}</span>
-                        <div className="flex-1">
-                            <h3 className="text-[18px] font-bold text-[var(--text-0)] tracking-wide">{current.name}</h3>
-                            <span className="text-[10px] text-[var(--text-3)] font-mono-tech uppercase tracking-widest mt-1">Situation actuelle Base</span>
+                    {/* ─── Header ─── */}
+                    <div className="relative">
+                        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--bg-2)] border border-[var(--border-0)] text-xs font-mono-tech text-[var(--primary)] mb-6 backdrop-blur-md">
+                            <span className="relative flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--primary)] opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--primary)]"></span>
+                            </span>
+                            MOTEUR_DE_DESTINÉE_V10_ACTIVE
                         </div>
-                        <span className="text-[11px] font-bold font-mono tracking-widest uppercase bg-[var(--bg-2)] text-[var(--text-2)] px-3 py-1 rounded border border-[var(--border-1)]">ORIGINE</span>
-                    </div>
-
-                    <div className="space-y-4">
-                        {rows.map((r) => (
-                            <div key={r.label} className="flex items-center justify-between pb-3 border-b border-[var(--border-0)] last:border-0">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-1.5 rounded-lg bg-[var(--bg-2)] border border-[var(--border-1)]">
-                                        <r.icon className="w-4 h-4 text-[var(--text-2)]" />
-                                    </div>
-                                    <span className="text-[13px] text-[var(--text-2)] uppercase font-semibold tracking-wide">{r.label}</span>
-                                </div>
-                                <span className="text-[14px] font-bold text-[var(--text-0)] font-mono-tech">
-                                    {r.fmt(current[r.key] as never)}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
-
-                    <div className="pt-2">
-                        <span className="text-[10px] text-[var(--text-3)] font-mono-tech uppercase tracking-widest">Capacité d'Epargne (Reste à vivre)</span>
-                        <p className="text-[36px] font-extrabold text-[var(--text-0)] tracking-tighter mt-1">
-                            {calcNet(current).toLocaleString()}€
+                        <h1 className="text-5xl md:text-7xl font-bold tracking-tighter text-[var(--text-0)] mb-4 leading-tight font-display">
+                            Simulateur de <br/><span className="text-gradient-primary">Trajectoire</span>
+                        </h1>
+                        <p className="text-lg text-[var(--text-2)] max-w-2xl font-light mb-8 font-body">
+                            Analyse de variables multi-dimensionnelles propulsée par Vertex AI. Identifie ton environnement orbital optimal.
                         </p>
+
+                        <button
+                            onClick={handleSave}
+                            disabled={isSaving}
+                            className="btn-stitch group relative inline-flex items-center gap-2 disabled:opacity-50"
+                        >
+                            <span className="relative flex items-center gap-2">
+                                {isSaving ? <><Loader2 className="w-4 h-4 animate-spin" /> CALCUL...</> :
+                                saveStatus === "saved" ? <><Check className="w-4 h-4" /> SIMULATION ENREGISTRÉE</> :
+                                <><Save className="w-4 h-4" /> SAUVEGARDER LE VECTEUR</>}
+                            </span>
+                        </button>
                     </div>
-                </div>
 
-                {/* Compare */}
-                <AnimatePresence mode="wait">
-                    <motion.div
-                        key={compare.name}
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -20 }}
-                        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                        className="glass-panel p-8 space-y-5 relative overflow-hidden bg-[var(--bg-1)] border-[var(--border-2)]"
-                        style={{ boxShadow: "0 10px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)" }}
-                    >
-                        {/* Shimmer gradient (subtle) */}
-                        <div className="absolute top-0 right-0 w-[500px] h-[500px] opacity-[0.03] pointer-events-none mix-blend-screen"
-                            style={{ background: `radial-gradient(circle at 80% -20%, #ffffff, transparent 60%)`, filter: "blur(40px)" }} />
-
-                        <div className="flex items-center gap-4 pb-5 relative z-10 border-b border-[var(--border-1)]">
-                            <span className="text-3xl opacity-90">{compare.flag}</span>
-                            <div className="flex-1">
-                                <h3 className="text-[18px] font-bold text-[var(--text-0)] tracking-wide">{compare.name}</h3>
-                                <div className="flex items-center gap-2 mt-1">
-                                    <Plane className="w-3.5 h-3.5 text-[var(--text-2)]" />
-                                    <span className="text-[10px] font-mono-tech tracking-widest uppercase text-[var(--text-2)]">{compare.visa}</span>
-                                </div>
-                            </div>
-                            <div className="text-[11px] font-bold font-mono tracking-widest uppercase bg-[var(--bg-2)] text-[var(--text-0)] px-3 py-1 rounded border border-[var(--border-2)] flex items-center shadow-[0_0_15px_rgba(255,255,255,0.05)]">
-                                <Zap className="w-3.5 h-3.5 mr-1 text-[var(--text-1)]" />
-                                {compare.score}/100
-                            </div>
-                        </div>
-
-                        <div className="space-y-4 relative z-10">
-                            {rows.map((r) => {
-                                const curr = r.key === "climate" ? 0 : (current[r.key] as number);
-                                const comp = r.key === "climate" ? 0 : (compare[r.key] as number);
-                                const diff = r.key === "tax" ? curr - comp : comp - curr;
+                    {/* ─── Country Selector ─── */}
+                    <div>
+                        <p className="text-sm font-medium text-[var(--text-3)] mb-4 uppercase tracking-widest flex items-center gap-2 font-label">
+                            <Activity className="w-4 h-4" /> Sélection du Noeud de Destination
+                        </p>
+                        <div className="flex flex-wrap gap-3">
+                            {countries.slice(1).map((c, i) => {
+                                const isActive = compareIdx === i + 1;
                                 return (
-                                    <div key={r.label} className="flex items-center justify-between pb-3 border-b border-[var(--border-0)] last:border-0">
-                                        <div className="flex items-center gap-3">
-                                            <div className="p-1.5 rounded-lg bg-[var(--bg-2)] border border-[var(--border-1)]">
-                                                <r.icon className="w-4 h-4 text-[var(--text-1)]" />
-                                            </div>
-                                            <span className="text-[13px] text-[var(--text-1)] uppercase font-semibold tracking-wide">{r.label}</span>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            <span className="text-[14px] font-bold text-[var(--text-0)] font-mono-tech">
-                                                {r.fmt(compare[r.key] as never)}
-                                            </span>
-                                            {r.key !== "climate" && diff !== 0 && (
-                                                <span className={`text-[12px] font-bold font-mono-tech px-2 py-0.5 rounded border border-[var(--border-1)] ${diff > 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"}`}>
-                                                    {diff > 0 ? "+" : ""}{diff > 0 ? "▲" : "▼"}
-                                                </span>
+                                    <motion.button
+                                        key={c.name}
+                                        whileHover={{ scale: 1.02 }}
+                                        whileTap={{ scale: 0.98 }}
+                                        onClick={() => setCompareIdx(i + 1)}
+                                        className={`relative px-6 py-3 rounded-2xl text-sm font-bold transition-all border overflow-hidden backdrop-blur-xl font-body ${isActive ? 'border-[rgba(143,245,255,0.4)] text-[var(--text-0)] shadow-[0_0_25px_rgba(143,245,255,0.15)]' : 'border-[var(--border-0)] text-[var(--text-2)] hover:text-[var(--text-0)] hover:border-[var(--border-1)]'}`}
+                                        style={{ background: isActive ? 'rgba(143,245,255,0.08)' : 'var(--bg-2)' }}
+                                    >
+                                        <span className="relative z-10 flex items-center gap-3">
+                                            <span className="text-xl">{c.flag}</span>
+                                            <span className="tracking-wide">{c.name}</span>
+                                            {isActive && (
+                                                <motion.span
+                                                    initial={{ opacity: 0, scale: 0.8 }}
+                                                    animate={{ opacity: 1, scale: 1 }}
+                                                    className="ml-2 tag-stitch"
+                                                >
+                                                    {c.score} PTS
+                                                </motion.span>
                                             )}
-                                        </div>
-                                    </div>
+                                        </span>
+                                    </motion.button>
                                 );
                             })}
                         </div>
-
-                        <div className="pt-2 relative z-10">
-                            <span className="text-[10px] font-mono-tech uppercase tracking-widest text-[var(--text-2)]">Projection d'Épargne MENSUELLE</span>
-                            <p className="text-[40px] font-extrabold tracking-tighter mt-1 text-[var(--text-0)]">
-                                {calcNet(compare).toLocaleString()}€
-                            </p>
-                        </div>
-                    </motion.div>
-                </AnimatePresence>
-            </div>
-
-            {/* ─── Impact financier ─── */}
-            <div className="glass-panel p-8 relative overflow-hidden bg-[var(--bg-1)] border-[var(--border-1)] shadow-none">
-                <div className="absolute top-0 right-0 w-[600px] h-[600px] opacity-[0.02] pointer-events-none mix-blend-screen"
-                    style={{ background: `radial-gradient(circle at 90% -10%, #ffffff, transparent 70%)`, filter: "blur(50px)" }} />
-
-                <div className="flex items-center gap-4 mb-8 relative z-10 border-b border-[var(--border-0)] pb-5">
-                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-[var(--bg-2)] border border-[var(--border-1)]">
-                        <BarChart3 className="w-5 h-5 text-[var(--text-0)]" />
                     </div>
-                    <div>
-                        <h3 className="text-[18px] font-bold text-[var(--text-0)] tracking-wide">Macro-Impact Financier</h3>
-                        <p className="text-[10px] text-[var(--text-3)] font-mono-tech uppercase tracking-widest mt-1">
-                            {current.name} vs {compare.name}
-                        </p>
-                    </div>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
-                    {[
-                        { label: "Différence Men.", value: diffNet, sub: "Cash-flow /mois" },
-                        { label: "Projection 3 ANS", value: diff3Y, sub: "Capital supplémentaire" },
-                        { label: "Projection 5 ANS", value: diff5Y, sub: "Capital supplémentaire" },
-                    ].map((m) => (
-                        <div key={m.label}
-                            className="text-center py-6 px-4 rounded-[16px] relative overflow-hidden group transition-all duration-300 hover:bg-[var(--bg-2)]"
-                            style={{ background: "var(--bg-0)", border: "1px solid var(--border-1)" }}>
+                    {/* ─── Comparison Cards ─── */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* Current Node */}
+                        <div className="relative p-8 rounded-[20px] bg-[var(--bg-2)]/50 border border-[var(--border-0)] backdrop-blur-xl flex flex-col justify-between">
+                            <div>
+                                <div className="flex items-center gap-4 pb-6 border-b border-[var(--border-0)]">
+                                    <div className="text-4xl">{current.flag}</div>
+                                    <div className="flex-1">
+                                        <h3 className="text-xl font-bold text-[var(--text-2)] tracking-wide font-display">{current.name}</h3>
+                                        <span className="text-xs text-[var(--text-3)] font-mono-tech uppercase tracking-widest mt-1">Noeud d&apos;Origine</span>
+                                    </div>
+                                    <span className="text-xs font-bold font-mono-tech tracking-widest uppercase bg-[var(--error)]/10 text-[var(--error)] px-3 py-1.5 rounded-lg border border-[var(--error)]/20">ORIGINE</span>
+                                </div>
 
-                            <p className="text-[10px] text-[var(--text-2)] font-mono-tech uppercase tracking-widest mb-3">{m.label}</p>
+                                <div className="space-y-5 mt-6">
+                                    {rows.map((r) => (
+                                        <div key={r.label} className="flex items-center justify-between pb-4 border-b border-[var(--border-0)] last:border-0 last:pb-0">
+                                            <div className="flex items-center gap-3">
+                                                <div className="p-2 rounded-xl bg-[var(--bg-3)] border border-[var(--border-0)]">
+                                                    <r.icon className="w-4 h-4 text-[var(--text-3)]" />
+                                                </div>
+                                                <span className="text-sm text-[var(--text-2)] uppercase font-semibold tracking-wider font-label">{r.label}</span>
+                                            </div>
+                                            <span className="text-base font-bold text-[var(--text-0)] font-mono-tech">
+                                                {r.fmt(current[r.key] as never)}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
 
-                            <p className={`text-[36px] font-extrabold tracking-tighter font-mono-tech ${m.value >= 0 ? "text-[var(--text-0)]" : "text-[var(--text-0)]"} ${m.value >= 0 ? "drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]" : "drop-shadow-none"}`}>
-                                {m.value >= 0 ? "+" : ""}{m.value.toLocaleString()}€
-                            </p>
-
-                            <p className="text-[10px] text-[var(--text-3)] mt-3 tracking-widest uppercase">{m.sub}</p>
-
-                            {m.value >= 0 && (
-                                <div className="absolute inset-x-0 bottom-0 h-[1px] opacity-20 group-hover:opacity-100 transition-opacity bg-gradient-to-r from-transparent via-[var(--text-1)] to-transparent" />
-                            )}
+                            <div className="pt-8 mt-8 border-t border-[var(--border-0)]">
+                                <span className="text-xs text-[var(--text-3)] font-mono-tech uppercase tracking-widest font-label">Capacité d&apos;Épargne MENSUELLE</span>
+                                <p className="text-4xl md:text-5xl font-extrabold text-[var(--text-0)] tracking-tighter mt-2 font-mono-tech drop-shadow-sm">
+                                    {calcNet(current).toLocaleString()}€
+                                </p>
+                            </div>
                         </div>
-                    ))}
-                </div>
+
+                        {/* Destination Node */}
+                        <AnimatePresence mode="wait">
+                            <motion.div
+                                key={compare.name}
+                                initial={{ opacity: 0, scale: 0.95, filter: "blur(10px)" }}
+                                animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+                                exit={{ opacity: 0, scale: 0.95, filter: "blur(10px)" }}
+                                transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                            >
+                                <TiltWrap>
+                                    <div className="absolute top-0 right-0 p-8 opacity-[0.06]">
+                                        <Globe className="w-64 h-64 text-[var(--primary)]" />
+                                    </div>
+
+                                    <div className="flex items-center gap-4 pb-6 relative z-10 border-b border-[var(--border-0)]">
+                                        <div className="text-4xl">{compare.flag}</div>
+                                        <div className="flex-1">
+                                            <h3 className="text-xl font-bold text-[var(--text-0)] tracking-wide font-display">{compare.name}</h3>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <Plane className="w-4 h-4 text-[var(--text-3)]" />
+                                                <span className="text-xs font-mono-tech tracking-widest uppercase text-[var(--primary)]">{compare.visa}</span>
+                                            </div>
+                                        </div>
+                                        <div className="text-xs font-bold font-mono-tech tracking-widest uppercase bg-[var(--primary)]/10 text-[var(--primary)] px-4 py-1.5 rounded-lg border border-[var(--primary)]/20 flex items-center shadow-[0_0_20px_rgba(143,245,255,0.12)]">
+                                            <Zap className="w-4 h-4 mr-2" />
+                                            {compare.score}/100
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-5 mt-6 relative z-10 flex-1">
+                                        {rows.map((r) => {
+                                            const curr = r.key === "climate" ? 0 : (current[r.key] as number);
+                                            const comp = r.key === "climate" ? 0 : (compare[r.key] as number);
+                                            let diff = comp - curr;
+                                            if(r.key === "tax") diff = curr - comp;
+
+                                            return (
+                                                <div key={r.label} className="flex items-center justify-between pb-4 border-b border-[var(--border-0)] last:border-0 last:pb-0">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="p-2 rounded-xl bg-[var(--bg-3)] border border-[var(--border-0)]">
+                                                            <r.icon className="w-4 h-4 text-[var(--primary)]" />
+                                                        </div>
+                                                        <span className="text-sm text-[var(--text-1)] uppercase font-semibold tracking-wider font-label">{r.label}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-4">
+                                                        <span className="text-base font-bold text-[var(--text-0)] font-mono-tech">
+                                                            {r.fmt(compare[r.key] as never)}
+                                                        </span>
+                                                        {r.key !== "climate" && (comp - curr) !== 0 && (
+                                                            <span className={`text-[11px] font-bold font-mono-tech px-2 py-1 rounded bg-[var(--bg-3)] border border-[var(--border-0)] ${diff > 0 ? "text-[var(--success)]" : "text-[var(--error)]"}`}>
+                                                                {(comp - curr) > 0 ? "+" : ""}{(comp - curr).toLocaleString()}{r.key === 'tax' ? "%" : "€"}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+
+                                    <div className="pt-8 mt-auto border-t border-[var(--border-0)] relative z-10">
+                                        <span className="text-xs font-mono-tech uppercase tracking-widest text-[var(--primary)] font-label">Projection d&apos;Épargne MENSUELLE</span>
+                                        <p className="text-4xl md:text-5xl font-extrabold tracking-tighter mt-2 text-gradient-primary font-mono-tech drop-shadow-sm">
+                                            {calcNet(compare).toLocaleString()}€
+                                        </p>
+                                    </div>
+                                </TiltWrap>
+                            </motion.div>
+                        </AnimatePresence>
+                    </div>
+
+                    {/* ─── Macro Impact ─── */}
+                    <div className="glass-panel p-8 overflow-hidden mt-8">
+                        <div className="absolute -bottom-1/2 -right-1/4 w-[1000px] h-[1000px] bg-gradient-to-tl from-[rgba(172,137,255,0.06)] via-transparent to-transparent blur-3xl rounded-full pointer-events-none" />
+
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 relative z-10 border-b border-[var(--border-0)] pb-6">
+                            <div className="flex items-center gap-4">
+                                <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-gradient-to-br from-[var(--primary)]/15 to-[var(--secondary)]/15 border border-[var(--primary)]/20">
+                                    <TrendingUp className="w-6 h-6 text-[var(--primary)]" />
+                                </div>
+                                <div>
+                                    <h3 className="text-2xl font-bold text-[var(--text-0)] tracking-tight font-display">Macro-Impact Financier</h3>
+                                    <p className="text-sm text-[var(--text-2)] font-mono-tech mt-1">
+                                        Delta Trajectoire : <span className="text-[var(--secondary)]">{current.name}</span> → <span className="text-[var(--primary)]">{compare.name}</span>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
+                            {[
+                                { label: "Delta Mensuel", value: diffNet, sub: "Surplus Cash-flow net" },
+                                { label: "Progression 36 Mois", value: diff3Y, sub: "Capital supplémentaire accumulé" },
+                                { label: "Horizon 60 Mois", value: diff5Y, sub: "Trajectoire long terme ajustée" },
+                            ].map((m) => (
+                                <div key={m.label}
+                                    className="p-6 rounded-[16px] relative overflow-hidden group transition-all duration-300 bg-[var(--bg-1)] border border-[var(--border-0)] hover:border-[var(--border-2)]"
+                                >
+                                    <p className="text-xs text-[var(--text-3)] font-mono-tech uppercase tracking-widest mb-3 font-label">{m.label}</p>
+                                    <p className={`text-4xl font-extrabold tracking-tighter font-mono-tech ${m.value >= 0 ? "text-[var(--success)]" : "text-[var(--error)]"}`}>
+                                        {m.value >= 0 ? "+" : ""}{m.value.toLocaleString()}€
+                                    </p>
+                                    <p className="text-xs text-[var(--text-3)] mt-4 font-medium font-body">{m.sub}</p>
+
+                                    {m.value >= 0 && (
+                                        <div className="absolute inset-x-0 bottom-0 h-[2px] opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-r from-transparent via-[var(--primary)] to-transparent" />
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                </motion.div>
             </div>
-        </motion.div>
+        </div>
     );
 }

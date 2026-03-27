@@ -37,13 +37,13 @@ type Post = {
 // Fallback data if API is unreachable
 const FALLBACK_POSTS: Post[] = [
     {
-        id: "1", author: "Karim B.", avatar: "K", badge: "Expert Malte", badgeColor: "var(--accent-indigo)",
+        id: "1", author: "Karim B.", avatar: "K", badge: "Expert Malte", badgeColor: "var(--primary)",
         country: "Malte", flag: "🇲🇹",
         content: "6 mois après mon arrivée à Malte. **Coût de la vie réel** : 1400€/mois pour un appart correct à Sliema. Internet fibre 50Mbps partout. La communauté tech est petite mais très soudée. AMA dans les comments.",
         likes: 47, comments: 12, time: "Il y a 2h", verified: true,
     },
     {
-        id: "2", author: "Sophie L.", avatar: "S", badge: "Exploratrice", badgeColor: "var(--accent-magenta)",
+        id: "2", author: "Sophie L.", avatar: "S", badge: "Exploratrice", badgeColor: "var(--tertiary)",
         country: "Portugal", flag: "🇵🇹",
         content: "Update sur le **visa NHR Portugal** : la procédure a changé. Comptez 6-8 semaines au lieu de 4. Passez par un avocat local, ça vaut les 800€. J'ai fait l'erreur de tenter solo, j'ai perdu 2 mois.",
         likes: 89, comments: 23, time: "Il y a 5h", verified: true,
@@ -157,8 +157,8 @@ export default function SafeZonePage() {
                     <Shield className="w-4 h-4 text-[var(--text-2)]" />
                     <span className="section-label tracking-widest text-[var(--text-2)] font-mono-tech uppercase">Réseau_Neural_Sécurisé_V9</span>
                 </div>
-                <h1 className="text-[clamp(2.5rem,5vw,3.5rem)] font-extrabold tracking-tight leading-[1] text-[var(--text-0)]">
-                    La <span className="text-gradient-shimmer" data-text="Safe-Zone">Safe-Zone</span>
+                <h1 className="text-[clamp(2.5rem,5vw,3.5rem)] font-extrabold tracking-tight leading-[1] text-[var(--text-0)] font-display">
+                    La <span className="text-gradient-primary">Safe-Zone</span>
                 </h1>
                 <p className="text-[14px] text-[var(--text-3)] font-mono-tech uppercase tracking-widest mt-4 max-w-lg leading-relaxed md:mx-0 mx-auto">
                     Flux de données vérifiées. Protocole anti-toxicité modéré.
@@ -213,7 +213,7 @@ export default function SafeZonePage() {
                         whileTap={{ scale: 0.98 }}
                         onClick={handlePost}
                         disabled={!newPost.trim() || isPosting}
-                        className="btn-sci-fi text-[12px] px-6 py-2 disabled:opacity-30 disabled:cursor-not-allowed"
+                        className="btn-stitch text-[12px] px-6 py-2 disabled:opacity-30 disabled:cursor-not-allowed"
                     >
                         {isPosting ? <span className="animate-pulse">CRYPTAGE...</span> : (
                             <>
@@ -231,7 +231,7 @@ export default function SafeZonePage() {
                             exit={{ opacity: 0, height: 0 }}
                             className="mt-4 flex items-center gap-2 text-[11px] font-mono-tech uppercase tracking-widest px-4 py-3 rounded-xl ml-14 bg-[var(--bg-2)] border border-[var(--border-2)] text-[var(--text-1)]"
                         >
-                            {modResult === "success" ? <Sparkles className="w-4 h-4 text-[var(--accent-indigo)]" /> : <AlertTriangle className="w-4 h-4 text-red-400" />}
+                            {modResult === "success" ? <Sparkles className="w-4 h-4 text-[var(--primary)]" /> : <AlertTriangle className="w-4 h-4 text-[var(--error)]" />}
                             {modResult === "success" ? "TRANSMISSION SÉCURISÉE CONFIRMÉE" : "ALERTE: FRÉQUENCE TOXIQUE DÉTECTÉE. ANNULATION."}
                         </motion.div>
                     )}

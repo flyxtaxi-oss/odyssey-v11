@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Odyssey.ai | Celestial Navigator</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Manrope:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              colors: {
+                "on-secondary-container": "#f8f1ff",
+                "secondary-container": "#7000ff",
+                "on-primary-container": "#005359",
+                "primary-container": "#00eefc",
+                "surface-container-high": "#1c2028",
+                "tertiary-fixed-dim": "#ff68e3",
+                "on-secondary-fixed": "#41009a",
+                "surface-container-highest": "#22262f",
+                "on-tertiary-fixed-variant": "#6d0061",
+                "on-primary-fixed-variant": "#005e64",
+                "surface-tint": "#8ff5ff",
+                "on-tertiary": "#42003a",
+                "secondary": "#ac89ff",
+                "on-error": "#490006",
+                "on-surface": "#ecedf6",
+                "surface-container-lowest": "#000000",
+                "surface-dim": "#0b0e14",
+                "on-tertiary-fixed": "#33002d",
+                "inverse-primary": "#006a71",
+                "surface-container": "#161a21",
+                "outline": "#73757d",
+                "background": "#0b0e14",
+                "error-dim": "#d7383b",
+                "secondary-fixed": "#dac9ff",
+                "on-secondary-fixed-variant": "#6300e2",
+                "on-background": "#ecedf6",
+                "on-surface-variant": "#a9abb3",
+                "surface": "#0b0e14",
+                "primary-dim": "#00deec",
+                "inverse-on-surface": "#52555c",
+                "on-tertiary-container": "#1b0017",
+                "secondary-fixed-dim": "#ceb9ff",
+                "tertiary-container": "#ff05e5",
+                "tertiary": "#ff59e3",
+                "primary-fixed": "#00eefc",
+                "on-secondary": "#290067",
+                "surface-container-low": "#10131a",
+                "on-primary-fixed": "#003f43",
+                "outline-variant": "#45484f",
+                "secondary-dim": "#874cff",
+                "inverse-surface": "#f9f9ff",
+                "primary": "#8ff5ff",
+                "error-container": "#9f0519",
+                "surface-bright": "#282c36",
+                "surface-variant": "#22262f",
+                "on-primary": "#005d63",
+                "primary-fixed-dim": "#00deec",
+                "tertiary-dim": "#ff59e3",
+                "on-error-container": "#ffa8a3",
+                "tertiary-fixed": "#ff85e4",
+                "error": "#ff716c"
+              },
+              fontFamily: {
+                "headline": ["Space Grotesk"],
+                "body": ["Manrope"],
+                "label": ["Inter"]
+              },
+              borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+            },
+          },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-panel {
+            background: rgba(34, 38, 47, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(69, 72, 79, 0.15);
+        }
+        .neon-glow {
+            box-shadow: 0 0 20px rgba(143, 245, 255, 0.08);
+        }
+        body {
+            background-color: #0b0e14;
+            color: #ecedf6;
+            font-family: 'Manrope', sans-serif;
+        }
+    </style>
+</head>
+<body class="overflow-hidden">
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-0 h-screen flex flex-col bg-[#0b0e14] dark:bg-[#0b0e14] h-full w-64 border-r border-[#45484f]/15 font-['Space_Grotesk'] tracking-tight z-50">
+<div class="p-8">
+<h1 class="text-2xl font-bold bg-gradient-to-r from-[#00D1FF] to-[#ac89ff] bg-clip-text text-transparent">Odyssey.ai</h1>
+<p class="text-xs text-on-surface-variant tracking-[0.2em] mt-1 uppercase">Celestial Navigator</p>
+</div>
+<nav class="flex-1 px-4 space-y-2 mt-4">
+<!-- Active: Home -->
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg transition-all duration-300 text-[#00D1FF] bg-[#1c2028] border-r-2 border-[#00D1FF]" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="font-medium">Home</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg transition-all duration-300 text-[#a9abb3] hover:text-[#ecedf6] hover:bg-[#1c2028]" href="#">
+<span class="material-symbols-outlined">route</span>
+<span class="font-medium">Relocation Tracker</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg transition-all duration-300 text-[#a9abb3] hover:text-[#ecedf6] hover:bg-[#1c2028]" href="#">
+<span class="material-symbols-outlined">description</span>
+<span class="font-medium">Documents</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg transition-all duration-300 text-[#a9abb3] hover:text-[#ecedf6] hover:bg-[#1c2028]" href="#">
+<span class="material-symbols-outlined">smart_toy</span>
+<span class="font-medium">AI Assistant</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg transition-all duration-300 text-[#a9abb3] hover:text-[#ecedf6] hover:bg-[#1c2028]" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="font-medium">Community</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg transition-all duration-300 text-[#a9abb3] hover:text-[#ecedf6] hover:bg-[#1c2028]" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-medium">Settings</span>
+</a>
+</nav>
+<div class="p-6">
+<div class="p-4 rounded-xl bg-surface-container border border-outline-variant/20">
+<p class="text-sm font-label text-on-surface mb-3">Upgrade to Pro</p>
+<button class="w-full py-2 bg-gradient-to-r from-primary to-primary-dim text-on-primary text-xs font-bold rounded-lg uppercase tracking-wider">Unlock AI Insights</button>
+</div>
+<div class="mt-6 flex items-center gap-3">
+<img alt="User Profile Avatar" class="w-10 h-10 rounded-full border border-primary/30" data-alt="Portrait of a professional young man with a slight smile, studio lighting, high-end corporate headshot style" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDVDFE1VaOLYD0Cbvkyj6YI8gB7eHiHk9tNNSG2nH7iYH7heswULft0mWCYvyvH-crOcg_JSzBCkPhICPuwXvSxST6cNuT82QULbKag0e_XK4sCoZgdCjhuZkJabhM0fUO0WI6sTPm6Xwcb8QWnNCCVbcHX0ZQf9hGqfSLC-gJeLpPlsE0TdUqOB37SYrFonZJw0SL-FgSYDfnLdvRUVMlTF41LuT_rRePKpj5abNvntYLPt7njdz4ty2tmX492OKpnpHhlcfR6SCo-"/>
+<div>
+<p class="text-sm font-bold text-on-surface">Alex Chen</p>
+<p class="text-xs text-on-surface-variant">Tier: Explorer</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- TopNavBar -->
+<header class="fixed top-0 right-0 left-64 h-16 flex items-center justify-between px-8 z-40 bg-[#0b0e14]/60 backdrop-blur-xl font-['Manrope'] font-medium shadow-[0_10px_30px_-15px_rgba(143,245,255,0.08)]">
+<div class="flex items-center bg-surface-container-low px-4 py-2 rounded-full border border-outline-variant/10 w-96">
+<span class="material-symbols-outlined text-on-surface-variant text-sm mr-2">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-sm w-full text-on-surface placeholder:text-on-surface-variant" placeholder="Search destinations, docs, or laws..." type="text"/>
+</div>
+<div class="flex items-center gap-6">
+<button class="text-on-surface-variant hover:opacity-80 transition-opacity">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="text-on-surface-variant hover:opacity-80 transition-opacity">
+<span class="material-symbols-outlined">history_edu</span>
+</button>
+<div class="h-8 w-[1px] bg-outline-variant/20"></div>
+<div class="flex items-center gap-3">
+<span class="text-sm text-on-surface">Alex Chen</span>
+<img alt="User Avatar" class="w-8 h-8 rounded-full border border-outline-variant" data-alt="Close up portrait of a young professional with clean modern aesthetic" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCTNtfQF27RJeriMQ2cE5L2rsXcdpWn8Ke45kFrzvJh1vDLs_ZrkVnWkTmvWyFHO_k3o0D3tx2KbW5d20UWOTaN4HfUifi43l0-gEyESN5vdtCjjeRqaJ9HHzPA8S7IYNUPpU-R_ChKPzYhfUcXnXY739LPyuxjzwjkH08W0Zn6-dG9yOM6824eVvjs8-9csSm3RLxOuzhrbZ2UPlBt71kA44tlDk8g0cbddTQVUHgOPq1uw4cCnawBJLlDGmAuKt8Mf8Tzsi9gTCqp"/>
+</div>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="ml-64 mt-16 p-8 h-[calc(100vh-4rem)] overflow-y-auto bg-surface-dim custom-scrollbar">
+<!-- Welcome Header -->
+<header class="mb-10">
+<h2 class="text-4xl font-headline font-bold text-on-surface tracking-tight mb-2">Welcome back, Alex.</h2>
+<p class="text-on-surface-variant font-body">Your move to <span class="text-primary font-bold">Lisbon, Portugal</span> is 68% complete. Destination orbit stabilized.</p>
+</header>
+<!-- KPI Grid -->
+<section class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+<!-- KPI 1 -->
+<div class="glass-panel p-6 rounded-2xl neon-glow">
+<div class="flex justify-between items-start mb-4">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">rocket_launch</span>
+<span class="text-[10px] font-label font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">+12%</span>
+</div>
+<p class="text-xs font-label text-on-surface-variant uppercase tracking-widest mb-1">Relocation Progress</p>
+<p class="text-2xl font-headline font-bold text-on-surface">68.4%</p>
+<div class="mt-4 h-1 w-full bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[68%]"></div>
+</div>
+</div>
+<!-- KPI 2 -->
+<div class="glass-panel p-6 rounded-2xl neon-glow">
+<div class="flex justify-between items-start mb-4">
+<span class="material-symbols-outlined text-secondary">event</span>
+</div>
+<p class="text-xs font-label text-on-surface-variant uppercase tracking-widest mb-1">Days Remaining</p>
+<p class="text-2xl font-headline font-bold text-on-surface">42 Days</p>
+<p class="text-[10px] font-label text-on-surface-variant mt-2">Target Date: Oct 24, 2024</p>
+</div>
+<!-- KPI 3 -->
+<div class="glass-panel p-6 rounded-2xl neon-glow">
+<div class="flex justify-between items-start mb-4">
+<span class="material-symbols-outlined text-tertiary">payments</span>
+</div>
+<p class="text-xs font-label text-on-surface-variant uppercase tracking-widest mb-1">Budget Tracking</p>
+<p class="text-2xl font-headline font-bold text-on-surface">€8,420</p>
+<p class="text-[10px] font-label text-on-surface-variant mt-2">74% of total budget used</p>
+</div>
+<!-- KPI 4 -->
+<div class="glass-panel p-6 rounded-2xl neon-glow">
+<div class="flex justify-between items-start mb-4">
+<span class="material-symbols-outlined text-primary-dim">verified_user</span>
+</div>
+<p class="text-xs font-label text-on-surface-variant uppercase tracking-widest mb-1">Document Status</p>
+<p class="text-2xl font-headline font-bold text-on-surface">12 / 18</p>
+<p class="text-[10px] font-label text-on-surface-variant mt-2">6 Pending Verification</p>
+</div>
+</section>
+<!-- Dashboard Body Layout -->
+<div class="grid grid-cols-12 gap-8">
+<!-- AI Assistant Section (Left/Center) -->
+<section class="col-span-12 lg:col-span-8 flex flex-col h-[550px] glass-panel rounded-3xl overflow-hidden">
+<div class="p-6 border-b border-outline-variant/10 flex items-center justify-between bg-surface-container/30">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-sm">smart_toy</span>
+</div>
+<div>
+<p class="text-sm font-bold text-on-surface">Odyssey AI</p>
+<p class="text-[10px] text-primary flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+                                Synced with Portuguese SEF API
+                            </p>
+</div>
+</div>
+<button class="text-on-surface-variant hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined">more_horiz</span>
+</button>
+</div>
+<!-- Chat Canvas -->
+<div class="flex-1 p-8 space-y-6 overflow-y-auto custom-scrollbar bg-gradient-to-b from-transparent to-primary/5">
+<!-- Message 1 -->
+<div class="flex gap-4 max-w-2xl">
+<div class="w-8 h-8 rounded-full bg-surface-container flex-shrink-0 flex items-center justify-center border border-outline-variant/20">
+<span class="material-symbols-outlined text-xs">smart_toy</span>
+</div>
+<div class="p-4 rounded-2xl rounded-tl-none bg-surface-container border border-outline-variant/10">
+<p class="text-sm text-on-surface leading-relaxed">Olá Alex! I've analyzed the latest visa requirements for your D7 application. You are missing a certified copy of your NIF document. Would you like me to guide you on how to obtain this digitally?</p>
+</div>
+</div>
+<!-- Message 2 (User) -->
+<div class="flex gap-4 max-w-2xl ml-auto flex-row-reverse">
+<div class="w-8 h-8 rounded-full bg-primary flex-shrink-0 flex items-center justify-center">
+<span class="material-symbols-outlined text-xs text-on-primary">person</span>
+</div>
+<div class="p-4 rounded-2xl rounded-tr-none bg-primary/10 border border-primary/20">
+<p class="text-sm text-on-surface leading-relaxed">Yes, please. Also, can you check the current wait times for apartment viewings in Arroios?</p>
+</div>
+</div>
+<!-- Message 3 (AI Typing Animation placeholder) -->
+<div class="flex gap-4 max-w-2xl">
+<div class="w-8 h-8 rounded-full bg-surface-container flex-shrink-0 flex items-center justify-center border border-outline-variant/20">
+<span class="material-symbols-outlined text-xs">smart_toy</span>
+</div>
+<div class="p-4 rounded-2xl rounded-tl-none bg-surface-container border border-outline-variant/10">
+<div class="flex gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-primary/40 animate-bounce"></span>
+<span class="w-1.5 h-1.5 rounded-full bg-primary/40 animate-bounce [animation-delay:0.2s]"></span>
+<span class="w-1.5 h-1.5 rounded-full bg-primary/40 animate-bounce [animation-delay:0.4s]"></span>
+</div>
+</div>
+</div>
+</div>
+<!-- Input Area -->
+<div class="p-6 bg-surface-container-high/50">
+<div class="relative group">
+<textarea class="w-full bg-surface-container-low border-b border-outline-variant/30 focus:border-primary focus:ring-0 rounded-xl px-6 py-4 text-sm text-on-surface transition-all placeholder:text-on-surface-variant resize-none" placeholder="Ask anything about your relocation..." rows="1"></textarea>
+<div class="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-3">
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">attach_file</span>
+</button>
+<button class="bg-primary text-on-primary p-2 rounded-lg hover:bg-primary-dim transition-all flex items-center justify-center">
+<span class="material-symbols-outlined text-sm">send</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- Next Steps Section (Right) -->
+<section class="col-span-12 lg:col-span-4 flex flex-col gap-6">
+<div class="glass-panel rounded-3xl p-6">
+<h3 class="text-lg font-headline font-bold text-on-surface mb-6 flex items-center justify-between">
+                        Next Relocation Steps
+                        <span class="text-[10px] font-label text-primary uppercase tracking-widest">Active</span>
+</h3>
+<div class="space-y-6 relative">
+<!-- Vertical Thread -->
+<div class="absolute left-3.5 top-2 bottom-2 w-px bg-primary/20"></div>
+<!-- Step 1 -->
+<div class="relative pl-10">
+<div class="absolute left-0 top-1 w-7 h-7 rounded-full bg-primary/10 border border-primary flex items-center justify-center z-10">
+<span class="material-symbols-outlined text-primary text-[16px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<div>
+<p class="text-sm font-bold text-on-surface">Visa Appointment</p>
+<p class="text-xs text-on-surface-variant mt-1">Consulate of Portugal, San Francisco</p>
+<div class="flex items-center gap-2 mt-2">
+<span class="text-[10px] bg-surface-container-high px-2 py-0.5 rounded text-on-surface-variant">Completed</span>
+<span class="text-[10px] text-on-surface-variant">Aug 12, 2024</span>
+</div>
+</div>
+</div>
+<!-- Step 2 -->
+<div class="relative pl-10">
+<div class="absolute left-0 top-1 w-7 h-7 rounded-full bg-surface-container border border-primary flex items-center justify-center z-10 animate-pulse shadow-[0_0_10px_rgba(143,245,255,0.4)]">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+</div>
+<div>
+<p class="text-sm font-bold text-on-surface">Apartment Viewing</p>
+<p class="text-xs text-on-surface-variant mt-1">Rua de Angola, 14, Lisbon</p>
+<div class="flex items-center gap-2 mt-2">
+<span class="text-[10px] bg-primary/10 px-2 py-0.5 rounded text-primary font-bold">Tomorrow, 10:00 AM</span>
+</div>
+</div>
+</div>
+<!-- Step 3 -->
+<div class="relative pl-10">
+<div class="absolute left-0 top-1 w-7 h-7 rounded-full bg-surface-container border border-outline-variant/30 flex items-center justify-center z-10">
+<span class="w-2 h-2 rounded-full bg-outline-variant"></span>
+</div>
+<div>
+<p class="text-sm font-bold text-on-surface-variant">NIF Finalization</p>
+<p class="text-xs text-on-surface-variant/60 mt-1">Awaiting digital certification</p>
+</div>
+</div>
+<!-- Step 4 -->
+<div class="relative pl-10">
+<div class="absolute left-0 top-1 w-7 h-7 rounded-full bg-surface-container border border-outline-variant/30 flex items-center justify-center z-10">
+<span class="w-2 h-2 rounded-full bg-outline-variant"></span>
+</div>
+<div>
+<p class="text-sm font-bold text-on-surface-variant">Shipping Logistics</p>
+<p class="text-xs text-on-surface-variant/60 mt-1">Furniture quote confirmation</p>
+</div>
+</div>
+</div>
+<button class="w-full mt-8 py-3 rounded-xl border border-outline-variant/20 text-xs font-bold text-on-surface hover:bg-surface-container transition-colors">
+                        View Full Roadmap
+                    </button>
+</div>
+<!-- Destination Card -->
+<div class="relative rounded-3xl h-48 overflow-hidden group">
+<img alt="Lisbon Portugal Skyline" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" data-alt="Aerial view of Lisbon's historic orange roof buildings near the Tagus river at dusk, glowing city lights, cinematic atmosphere" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB98tKrNzQnpLeDgfzPbCvfy4msvHLiCj36fTouQS_nrb65RZ6hviC_eTmYpqyE217hrA520TsJM8T6jIq_5N4eNs34BeY1HeKLIKSJO78FfUhU7ZRmv4qneliKA3oGcfNf2xmvrgFsK_NhARTcJsd4Na7nBmFOR_A5OaJAz0j1mffZujheGaqh9qBYnAFe99OOQUGi3Q9mWnmOB19Pu4Q8G1aSRzugzpRj7v3SthHr7seHHKuz-c_d_ETp3NzNyCHCNP090mjMQ_uD"/>
+<div class="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent"></div>
+<div class="absolute bottom-4 left-6 right-6 flex justify-between items-end">
+<div>
+<p class="text-[10px] font-label text-primary uppercase tracking-[0.2em] mb-1">Current Destination</p>
+<h4 class="text-xl font-headline font-bold text-on-surface">Lisbon, Portugal</h4>
+</div>
+<div class="flex items-center gap-1 text-sm text-on-surface">
+<span class="material-symbols-outlined text-sm">wb_sunny</span>
+                            24°C
+                        </div>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- Floating Action Button -->
+<button class="fixed bottom-8 right-8 w-14 h-14 bg-gradient-to-tr from-secondary to-primary rounded-full shadow-[0_0_20px_rgba(172,137,255,0.4)] flex items-center justify-center text-on-secondary-container z-50 hover:scale-105 transition-transform">
+<span class="material-symbols-outlined font-bold">add</span>
+</button>
+</body></html>
