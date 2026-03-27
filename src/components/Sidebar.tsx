@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Brain, Globe, Users, LayoutDashboard, Settings, ChevronLeft, ChevronRight, Search, Sparkles } from "lucide-react";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 
@@ -164,14 +165,17 @@ export default function Sidebar() {
                     </AnimatePresence>
                 </div>
 
-                {/* Collapse toggle */}
-                <button
-                    onClick={() => setCollapsed(!collapsed)}
-                    title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-                    className="w-full mt-3 flex items-center justify-center p-2.5 rounded-xl transition-all hover:bg-white/[0.03] text-[var(--text-3)] hover:text-[var(--primary)] border border-transparent hover:border-[var(--border-0)]"
-                >
-                    {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-                </button>
+                {/* Bottom Controls */}
+                <div className="flex items-center justify-between mt-3 gap-2">
+                    <ThemeToggle />
+                    <button
+                        onClick={() => setCollapsed(!collapsed)}
+                        title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+                        className="flex-1 flex items-center justify-center p-2.5 rounded-xl transition-all hover:bg-white/[0.03] text-[var(--text-3)] hover:text-[var(--primary)] border border-transparent hover:border-[var(--border-0)]"
+                    >
+                        {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+                    </button>
+                </div>
             </div>
         </motion.aside>
     );

@@ -117,7 +117,7 @@ export default function SimulatorPage() {
                             Simulateur de <br/><span className="text-gradient-primary">Trajectoire</span>
                         </h1>
                         <p className="text-lg text-[var(--text-2)] max-w-2xl font-light mb-8 font-body">
-                            Analyse de variables multi-dimensionnelles propulsée par Vertex AI. Identifie ton environnement orbital optimal.
+                            Analyse de variables multi-dimensionnelles propulsée par notre Moteur Quantique. Identifie ton environnement orbital optimal.
                         </p>
 
                         <button

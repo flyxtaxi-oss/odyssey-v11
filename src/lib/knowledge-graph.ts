@@ -16,14 +16,14 @@ export type MemoryNode = {
   updatedAt: string;
 };
 
-// ─── Mock PKG Store (Until Vertex AI is connected) ─────────────────────────
+// ─── Mock PKG Store (Until Core Engine is connected) ─────────────────────────
 // This stores basic facts per user in memory during development.
 
 const mockKnowledgeGraph: Record<string, MemoryNode[]> = {};
 
 /**
  * Extracts a fact from text and stores it in the user's Knowledge Graph.
- * In production, this will use Vertex AI to generate an embedding and store it in Vector Search.
+ * In production, this will use the Neural Engine to generate an embedding and store it in Vector Search.
  */
 export async function ingestFact(userId: string, content: string, type: MemoryType = "fact", source: "user_explicit" | "inferred_chat" = "inferred_chat"): Promise<MemoryNode> {
   if (!mockKnowledgeGraph[userId]) {
@@ -49,7 +49,7 @@ export async function ingestFact(userId: string, content: string, type: MemoryTy
 
 /**
  * Retrieves relevant facts based on a semantic query.
- * In production, this embeds the query via Vertex AI and searches the Vector DB.
+ * In production, this embeds the query via the Quantum Core and searches the Vector DB.
  */
 export async function retrieveRelevantFacts(userId: string, query: string, topK: number = 3): Promise<MemoryNode[]> {
   const userGraph = mockKnowledgeGraph[userId] || [];

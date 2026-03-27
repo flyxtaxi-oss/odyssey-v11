@@ -76,7 +76,7 @@ const FALLBACK_DATA = {
   network_nodes: 156,
   cognitive_load: 18,
   activity: [
-    { text: "Vertex AI Engine Unlocked & Synced", time: "Just now", icon: Cpu, gradient: "from-[var(--primary)] to-[var(--primary-dim)]" },
+    { text: "Core Neural Engine Unlocked & Synced", time: "Just now", icon: Cpu, gradient: "from-[var(--primary)] to-[var(--primary-dim)]" },
     { text: "J.A.R.V.I.S. optimized daily schedule", time: "1h ago", icon: Brain, gradient: "from-[var(--secondary)] to-[var(--secondary-dim)]" },
     { text: "Language Lab: Japanese Mastery +2%", time: "3h ago", icon: MessageSquare, gradient: "from-[var(--success)] to-[#059669]" },
     { text: "SEO Geo-routing deployed globally", time: "5h ago", icon: Globe, gradient: "from-[var(--tertiary)] to-[var(--tertiary-dim)]" },
@@ -84,7 +84,7 @@ const FALLBACK_DATA = {
 };
 
 const subsystems = [
-  { id: "jarvis", label: "J.A.R.V.I.S. Core", desc: "Powered by Gemini 1.5", icon: Brain, href: "/jarvis", status: "Vertex Active", color: "var(--secondary)" },
+  { id: "jarvis", label: "J.A.R.V.I.S. Core", desc: "Powered by Quantum AI", icon: Brain, href: "/jarvis", status: "Neural Active", color: "var(--secondary)" },
   { id: "simulator", label: "Life Simulator", desc: "Trajectory Mapping", icon: Target, href: "/simulator", status: "Ready", color: "var(--primary)" },
   { id: "network", label: "Neural Network", desc: "Knowledge Graph", icon: Users, href: "/safezone", status: "Syncing", color: "var(--tertiary)" },
 ];
@@ -208,7 +208,7 @@ export default function StitchDeepSpaceDashboard() {
                 <div>
                   <div className="flex justify-between text-sm mb-2">
                     <span className="text-[var(--text-2)] font-body">Model Inference</span>
-                    <span className="text-[var(--primary)] font-mono-tech">Gemini 1.5 Pro</span>
+                    <span className="text-[var(--primary)] font-mono-tech">Quantum Matrix 1.5</span>
                   </div>
                   <div className="h-1.5 w-full bg-[var(--bg-void)] rounded-full overflow-hidden">
                     <motion.div initial={{ width: 0 }} animate={{ width: '100%' }} transition={{ duration: 2, delay: 0.5 }} className="h-full bg-gradient-to-r from-[var(--primary)] to-[var(--primary-dim)] rounded-full" />

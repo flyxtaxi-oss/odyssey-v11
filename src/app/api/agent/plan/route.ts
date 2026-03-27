@@ -27,7 +27,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "Query is required" }, { status: 400 });
         }
 
-        // Generate Plan using Google Gemini (with Token Cache)
+        // Generate Plan using Neural Engine (with Token Cache)
         const plan = await generateActionPlanFromAI(query, userId);
 
         return NextResponse.json({

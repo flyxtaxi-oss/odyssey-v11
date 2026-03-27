@@ -221,7 +221,7 @@ const MODEL_CONFIGS: Record<string, ModelConfig> = {
     "gemini-flash": {
         provider: "google",
         modelId: "gemini-2.5-flash-preview-05-20",
-        displayName: "Gemini 2.5 Flash",
+        displayName: "Neural Core Flash",
         maxTokens: 2048,
         temperature: 0.7,
         capabilities: ["fast", "multilingual", "general", "search"],
@@ -229,7 +229,7 @@ const MODEL_CONFIGS: Record<string, ModelConfig> = {
     "gemini-pro": {
         provider: "google",
         modelId: "gemini-2.5-pro-preview-05-06",
-        displayName: "Gemini 2.5 Pro",
+        displayName: "Neural Core Pro",
         maxTokens: 4096,
         temperature: 0.7,
         capabilities: ["reasoning", "analysis", "code", "complex"],

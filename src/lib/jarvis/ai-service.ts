@@ -25,12 +25,12 @@ export async function generateActionPlanFromAI(query: string, userId: string = "
     // 1. Check Smart Cache to save tokens and latency
     const cachedPlan = getCachedResponse(query, systemInstruction);
     if (cachedPlan) {
-        console.log("⚡ [JARVIS] Cache Hit - Skipping Gemini API call");
+        console.log("⚡ [JARVIS] Cache Hit - Skipping Neural Engine API call");
         return cachedPlan;
     }
 
-    // 2. Call Google Gemini via Vercel AI SDK
-    console.log("🌐 [JARVIS] Cache Miss - Calling Gemini AI...");
+    // 2. Call Proprietary Neural Engine via AI SDK
+    console.log("🌐 [JARVIS] Cache Miss - Calling Neural Engine...");
     try {
         const { object } = await generateObject({
             model: google('gemini-1.5-pro-latest'), // Using the latest Pro model
