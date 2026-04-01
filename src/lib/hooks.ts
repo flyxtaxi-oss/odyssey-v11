@@ -283,8 +283,10 @@ export function useSimulations() {
     const user = auth.currentUser;
 
     if (!user) {
-      setState({ data: { simulations: [], total: 0 }, error: null, isLoading: false });
-      return;
+      const timer = setTimeout(() => {
+        setState({ data: { simulations: [], total: 0 }, error: null, isLoading: false });
+      }, 0);
+      return () => clearTimeout(timer);
     }
 
     // Load from IndexedDB cache first

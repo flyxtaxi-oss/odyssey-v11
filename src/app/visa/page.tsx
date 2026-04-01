@@ -23,7 +23,7 @@ export default function VisaPage() {
         <div>
           <h1 className="text-2xl font-bold text-[var(--text-0)]">Visa Tracker</h1>
           <p className="text-sm text-[var(--text-3)] mt-0.5">
-            Suivi intelligent de vos visas et dates d'expiration
+            Suivi intelligent de vos visas et dates d&apos;expiration
           </p>
         </div>
       </div>
