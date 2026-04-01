@@ -1,169 +1,166 @@
-import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { NextRequest, NextResponse } from "next/server";
+import { collection, doc, setDoc, getDoc, getDocs, query, where } from "firebase/firestore";
+import { db, COLLECTIONS } from "@/lib/firebase";
+import { authenticateRequest, optionalAuth } from "@/lib/auth-middleware";
+import { SkillActionSchema, validateInput } from "@/lib/validation";
+import { getSecurityHeaders } from "@/lib/security";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder';
+// ==============================================================================
+// SKILLS API — Skill Tracks & Missions (SECURED)
+// ==============================================================================
 
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-export async function GET(request: Request) {
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
-
-    if (!userId) {
-        return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
-    }
-
+export async function GET(req: NextRequest) {
     try {
-        if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder')) {
-            return NextResponse.json({
-                tracks: [
-                    { id: 'track-1', user_id: userId, skill_name: 'Frontend Engineering', current_level: 'Apprentice', progress_percentage: 45 }
-                ],
-                missions: [
-                    { id: 'm-1', skill_track_id: 'track-1', mission_title: 'Build a React Component', description: 'Create a reusable button component with variants.', difficulty: 'Beginner', xp_reward: 50, is_completed: false },
-                    { id: 'm-2', skill_track_id: 'track-1', mission_title: 'Master React Hooks', description: 'Learn useEffect and state management.', difficulty: 'Intermediate', xp_reward: 100, is_completed: true }
-                ]
-            });
+        const user = await optionalAuth(req);
+        const { searchParams } = new URL(req.url);
+        const paramUserId = searchParams.get("userId");
+        const targetUserId = user?.uid || paramUserId;
+
+        if (!targetUserId) {
+            return NextResponse.json({ error: "User ID is required" }, { status: 400, headers: getSecurityHeaders() });
         }
 
-        const { data: tracks, error: tracksError } = await supabase
-            .from('user_skill_tracks')
-            .select('*')
-            .eq('user_id', userId)
-            .order('created_at', { ascending: false });
+        const tracksQuery = query(
+            collection(db, COLLECTIONS.SKILL_TRACKS),
+            where("user_id", "==", targetUserId)
+        );
+        const tracksSnap = await getDocs(tracksQuery);
+        const tracks = tracksSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
-        if (tracksError) throw tracksError;
-
-        let missionsData: any[] = [];
-        if (tracks && tracks.length > 0) {
-            const trackIds = tracks.map(t => t.id);
-            const { data: missions, error: missionsError } = await supabase
-                .from('skill_missions')
-                .select('*')
-                .in('skill_track_id', trackIds);
-
-            if (missionsError) throw missionsError;
-            missionsData = missions || [];
+        let missionsData: Array<Record<string, unknown>> = [];
+        if (tracks.length > 0) {
+            const trackIds = tracks.map((t: Record<string, unknown>) => t.id);
+            const missionsSnap = await getDocs(collection(db, COLLECTIONS.SKILL_MISSIONS));
+            missionsData = missionsSnap.docs
+                .map((d) => ({ id: d.id, ...d.data() }))
+                .filter((m: Record<string, unknown>) => trackIds.includes(m.skill_track_id));
         }
 
-        return NextResponse.json({
-            tracks: tracks || [],
-            missions: missionsData
-        });
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ tracks, missions: missionsData, source: "firebase" }, { headers: getSecurityHeaders() });
+    } catch (error) {
+        console.error("Skills GET Error:", error);
+        return NextResponse.json({ error: "Erreur lors de la récupération des skills." }, { status: 500, headers: getSecurityHeaders() });
     }
 }
 
-export async function POST(request: Request) {
+export async function POST(req: NextRequest) {
     try {
-        const body = await request.json();
-        const { action, ...data } = body;
+        const auth = await authenticateRequest(req);
+        if (!auth.success) {
+            return NextResponse.json({ error: auth.error }, { status: auth.status, headers: getSecurityHeaders() });
+        }
 
-        if (action === 'create_track') {
-            if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder')) {
-                const newTrack = {
-                    id: 'track-' + Date.now(),
-                    user_id: data.user_id,
-                    skill_name: data.skill_name,
-                    current_level: 'Novice',
-                    progress_percentage: 0
-                };
-                return NextResponse.json({ track: newTrack, message: 'Track created locally' });
-            }
+        let body: unknown;
+        try {
+            body = await req.json();
+        } catch {
+            return NextResponse.json({ error: "Invalid JSON body" }, { status: 400, headers: getSecurityHeaders() });
+        }
 
-            const { data: track, error } = await supabase
-                .from('user_skill_tracks')
-                .insert([{
-                    user_id: data.user_id,
-                    skill_name: data.skill_name,
-                    current_level: 'Novice',
-                    progress_percentage: 0
-                }])
-                .select()
-                .single();
+        const validation = validateInput(SkillActionSchema, body);
+        if (!validation.success) {
+            return NextResponse.json(
+                { error: "Validation failed", details: validation.errors },
+                { status: 400, headers: getSecurityHeaders() }
+            );
+        }
 
-            if (error) throw error;
+        const data = validation.data;
+
+        if (data.action === "create_track") {
+            const trackRef = doc(collection(db, COLLECTIONS.SKILL_TRACKS));
+            const trackData = {
+                id: trackRef.id,
+                user_id: auth.user.uid,
+                skill_name: data.skill_name,
+                current_level: "Novice",
+                progress_percentage: 0,
+                mastery_criteria: null,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+            };
+
+            await setDoc(trackRef, trackData);
 
             const initialMissions = [
                 {
-                    skill_track_id: track.id,
-                    mission_title: `Understand the basics of ${data.skill_name}`,
-                    description: `Read an introductory article or watch a video about the core concepts of ${data.skill_name}.`,
-                    difficulty: 'Beginner',
-                    xp_reward: 50
+                    skill_track_id: trackRef.id,
+                    mission_title: `Comprendre les bases de ${data.skill_name}`,
+                    description: `Lisez un article introductif ou regardez une vidéo sur les concepts fondamentaux de ${data.skill_name}.`,
+                    difficulty: "Beginner",
+                    xp_reward: 50,
+                    is_completed: false,
+                    user_id: auth.user.uid,
+                    created_at: new Date().toISOString(),
                 },
                 {
-                    skill_track_id: track.id,
-                    mission_title: `Complete the first practical exercise for ${data.skill_name}`,
-                    description: `Apply what you've learned in a small, practical scenario.`,
-                    difficulty: 'Beginner',
-                    xp_reward: 100
-                }
+                    skill_track_id: trackRef.id,
+                    mission_title: `Premier exercice pratique pour ${data.skill_name}`,
+                    description: `Appliquez vos connaissances dans un scénario pratique.`,
+                    difficulty: "Beginner",
+                    xp_reward: 100,
+                    is_completed: false,
+                    user_id: auth.user.uid,
+                    created_at: new Date().toISOString(),
+                },
             ];
 
-            const { error: missionError } = await supabase
-                .from('skill_missions')
-                .insert(initialMissions);
-
-            if (missionError) throw missionError;
-
-            return NextResponse.json({ track, message: 'Track and initial missions created' });
-        }
-
-        if (action === 'complete_mission') {
-            if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder')) {
-                return NextResponse.json({ message: 'Mission completed locally', newProgress: 60, newLevel: 'Apprentice' });
+            for (const mission of initialMissions) {
+                const missionRef = doc(collection(db, COLLECTIONS.SKILL_MISSIONS));
+                await setDoc(missionRef, mission);
             }
 
-            const { data: mission, error: missionError } = await supabase
-                .from('skill_missions')
-                .update({ is_completed: true })
-                .eq('id', data.mission_id)
-                .select()
-                .single();
+            return NextResponse.json(
+                { track: { ...trackData, id: trackRef.id }, message: "Track créé avec missions initiales" },
+                { status: 201, headers: getSecurityHeaders() }
+            );
+        }
 
-            if (missionError) throw missionError;
+        if (data.action === "update_mission") {
+            const missionRef = doc(db, COLLECTIONS.SKILL_MISSIONS, data.mission_id);
+            await setDoc(missionRef, { is_completed: data.is_completed }, { merge: true });
 
-            const { data: track, error: trackError } = await supabase
-                .from('user_skill_tracks')
-                .select('*')
-                .eq('id', mission.skill_track_id)
-                .single();
+            if (data.is_completed) {
+                const missionSnap = await getDoc(missionRef);
+                const mission = missionSnap.data();
 
-            if (trackError) throw trackError;
+                if (mission?.skill_track_id) {
+                    const trackRef = doc(db, COLLECTIONS.SKILL_TRACKS, mission.skill_track_id);
+                    const trackSnap = await getDoc(trackRef);
+                    const track = trackSnap.data();
 
-            let newProgress = track.progress_percentage + (mission.xp_reward / 10);
-            let newLevel = track.current_level;
+                    if (track) {
+                        let newProgress = (track.progress_percentage || 0) + ((mission.xp_reward || 0) / 10);
+                        let newLevel = track.current_level || "Novice";
 
-            if (newProgress >= 100) {
-                newProgress = 0;
-                const levels = ['Novice', 'Apprentice', 'Practitioner', 'Expert', 'Master'];
-                const currentIndex = levels.indexOf(newLevel);
-                if (currentIndex < levels.length - 1) {
-                    newLevel = levels[currentIndex + 1];
+                        if (newProgress >= 100) {
+                            newProgress = 0;
+                            const levels = ["Novice", "Apprentice", "Practitioner", "Expert", "Master"];
+                            const currentIndex = levels.indexOf(newLevel);
+                            if (currentIndex < levels.length - 1) {
+                                newLevel = levels[currentIndex + 1];
+                            }
+                        }
+
+                        await setDoc(trackRef, {
+                            progress_percentage: newProgress,
+                            current_level: newLevel,
+                            updated_at: new Date().toISOString(),
+                        }, { merge: true });
+
+                        return NextResponse.json({ message: "Mission complétée", newProgress, newLevel }, { headers: getSecurityHeaders() });
+                    }
                 }
             }
 
-            const { error: updateError } = await supabase
-                .from('user_skill_tracks')
-                .update({
-                    progress_percentage: newProgress,
-                    current_level: newLevel
-                })
-                .eq('id', track.id);
-
-            if (updateError) throw updateError;
-
-            return NextResponse.json({ message: 'Mission completed', newProgress, newLevel });
+            return NextResponse.json({ message: "Mission mise à jour" }, { headers: getSecurityHeaders() });
         }
 
-        return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
-
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: "Action invalide" }, { status: 400, headers: getSecurityHeaders() });
+    } catch (error) {
+        console.error("Skills POST Error:", error);
+        return NextResponse.json({ error: "Erreur serveur" }, { status: 500, headers: getSecurityHeaders() });
     }
 }

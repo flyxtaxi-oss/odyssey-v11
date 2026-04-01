@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Mail, Lock, ArrowRight, Sparkles, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, ArrowRight, Sparkles, Eye, EyeOff, AlertCircle, CheckCircle } from "lucide-react";
+import { signIn, signUp, onAuthChange, type AuthResult } from "@/lib/firebase";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
     const [email, setEmail] = useState("");
@@ -10,271 +12,148 @@ export default function LoginPage() {
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [mode, setMode] = useState<"login" | "signup">("login");
-    const [message, setMessage] = useState("");
+    const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+    const router = useRouter();
+
+    useEffect(() => {
+        const unsubscribe = onAuthChange((user) => {
+            if (user) router.push("/");
+        });
+        return () => unsubscribe();
+    }, [router]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
-        setMessage("");
+        setMessage(null);
 
-        // Simulate auth (replace with real Supabase auth when configured)
-        await new Promise((r) => setTimeout(r, 1500));
+        try {
+            let result: AuthResult;
+            if (mode === "login") {
+                result = await signIn(email, password);
+            } else {
+                result = await signUp(email, password);
+            }
 
-        setMessage(
-            mode === "login"
-                ? "🔑 Connexion simulée — Ajoutez vos clés Supabase dans .env.local"
-                : "✅ Inscription simulée — Ajoutez vos clés Supabase dans .env.local"
-        );
-        setIsLoading(false);
+            if (result.error) {
+                setMessage({ type: "error", text: result.message });
+            } else {
+                setMessage({ type: "success", text: result.message });
+                setTimeout(() => router.push("/"), 1000);
+            }
+        } catch {
+            setMessage({ type: "error", text: "Une erreur inattendue est survenue." });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const toggleMode = () => {
+        setMode(mode === "login" ? "signup" : "login");
+        setMessage(null);
     };
 
     return (
-        <div
-            style={{
-                minHeight: "100vh",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                background: "var(--bg-0)",
-                position: "relative",
-                overflow: "hidden",
-            }}
-        >
-            {/* Aurora background effect */}
-            <div
-                style={{
-                    position: "absolute",
-                    top: "-30%",
-                    left: "-10%",
-                    width: "60%",
-                    height: "60%",
-                    background:
-                        "radial-gradient(ellipse, rgba(37,99,235,0.15) 0%, transparent 70%)",
-                    filter: "blur(80px)",
-                    pointerEvents: "none",
-                }}
-            />
-            <div
-                style={{
-                    position: "absolute",
-                    bottom: "-20%",
-                    right: "-10%",
-                    width: "50%",
-                    height: "50%",
-                    background:
-                        "radial-gradient(ellipse, rgba(124,58,237,0.12) 0%, transparent 70%)",
-                    filter: "blur(80px)",
-                    pointerEvents: "none",
-                }}
-            />
+        <div className="min-h-screen flex items-center justify-center relative overflow-hidden" style={{ background: "var(--bg-0)" }}>
+            {/* Aurora background effects */}
+            <div className="absolute top-[-30%] left-[-10%] w-[60%] h-[60%] rounded-full pointer-events-none"
+                style={{ background: "radial-gradient(ellipse, rgba(37,99,235,0.15) 0%, transparent 70%)", filter: "blur(80px)" }} />
+            <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full pointer-events-none"
+                style={{ background: "radial-gradient(ellipse, rgba(124,58,237,0.12) 0%, transparent 70%)", filter: "blur(80px)" }} />
 
             <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.7 }}
-                style={{
-                    width: "100%",
-                    maxWidth: 440,
-                    padding: "48px 40px",
-                    background: "var(--glass-bg)",
-                    border: "1px solid var(--glass-border)",
-                    borderRadius: 24,
-                    backdropFilter: "blur(20px)",
-                    position: "relative",
-                    zIndex: 1,
-                }}
+                className="glass-panel w-full max-w-[440px] p-12 relative z-10"
             >
                 {/* Logo */}
-                <div style={{ textAlign: "center", marginBottom: 36 }}>
+                <div className="text-center mb-9">
                     <motion.div
                         animate={{ rotate: [0, 360] }}
                         transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                        style={{
-                            width: 56,
-                            height: 56,
-                            borderRadius: "50%",
-                            background: "linear-gradient(135deg, #2563EB, #7C3AED)",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            marginBottom: 16,
-                        }}
+                        className="w-14 h-14 rounded-full inline-flex items-center justify-center mb-4"
+                        style={{ background: "linear-gradient(135deg, #2563EB, #7C3AED)" }}
                     >
                         <Sparkles size={28} color="white" />
                     </motion.div>
-                    <h1
-                        style={{
-                            fontSize: 28,
-                            fontWeight: 800,
-                            color: "var(--text-0)",
-                            letterSpacing: "-0.02em",
-                        }}
-                    >
-                        ODYSSEY
-                        <span style={{ color: "#2563EB" }}>.AI</span>
+                    <h1 className="text-[28px] font-extrabold tracking-tight" style={{ color: "var(--text-0)" }}>
+                        ODYSSEY<span style={{ color: "#2563EB" }}>.AI</span>
                     </h1>
-                    <p style={{ color: "var(--text-2)", fontSize: 14, marginTop: 4 }}>
-                        {mode === "login"
-                            ? "Connectez-vous à votre univers"
-                            : "Créez votre compte Odyssey"}
+                    <p className="text-sm mt-1" style={{ color: "var(--text-2)" }}>
+                        {mode === "login" ? "Connectez-vous à votre univers" : "Créez votre compte Odyssey"}
                     </p>
                 </div>
 
                 <form onSubmit={handleSubmit}>
                     {/* Email */}
-                    <div style={{ marginBottom: 16 }}>
-                        <label
-                            style={{
-                                fontSize: 12,
-                                fontWeight: 600,
-                                color: "var(--text-2)",
-                                textTransform: "uppercase",
-                                letterSpacing: "0.08em",
-                                display: "block",
-                                marginBottom: 8,
-                            }}
-                        >
+                    <div className="mb-4">
+                        <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--text-2)" }}>
                             Email
                         </label>
-                        <div style={{ position: "relative" }}>
-                            <Mail
-                                size={18}
-                                style={{
-                                    position: "absolute",
-                                    left: 14,
-                                    top: "50%",
-                                    transform: "translateY(-50%)",
-                                    color: "var(--text-3)",
-                                }}
-                            />
+                        <div className="relative">
+                            <Mail size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: "var(--text-3)" }} />
                             <input
                                 type="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 placeholder="vous@exemple.com"
                                 required
-                                style={{
-                                    width: "100%",
-                                    padding: "14px 14px 14px 44px",
-                                    borderRadius: 12,
-                                    border: "1px solid var(--glass-border)",
-                                    background: "rgba(255,255,255,0.03)",
-                                    color: "var(--text-0)",
-                                    fontSize: 15,
-                                    outline: "none",
-                                    transition: "border 0.2s",
-                                    boxSizing: "border-box",
-                                }}
-                                onFocus={(e) =>
-                                    (e.target.style.borderColor = "#2563EB")
-                                }
-                                onBlur={(e) =>
-                                    (e.target.style.borderColor = "var(--glass-border)")
-                                }
+                                disabled={isLoading}
+                                className="input-sci-fi w-full py-3.5 pl-11 pr-4 text-[15px] outline-none"
+                                style={{ opacity: isLoading ? 0.7 : 1 }}
                             />
                         </div>
                     </div>
 
                     {/* Password */}
-                    <div style={{ marginBottom: 24 }}>
-                        <label
-                            style={{
-                                fontSize: 12,
-                                fontWeight: 600,
-                                color: "var(--text-2)",
-                                textTransform: "uppercase",
-                                letterSpacing: "0.08em",
-                                display: "block",
-                                marginBottom: 8,
-                            }}
-                        >
+                    <div className="mb-6">
+                        <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--text-2)" }}>
                             Mot de passe
                         </label>
-                        <div style={{ position: "relative" }}>
-                            <Lock
-                                size={18}
-                                style={{
-                                    position: "absolute",
-                                    left: 14,
-                                    top: "50%",
-                                    transform: "translateY(-50%)",
-                                    color: "var(--text-3)",
-                                }}
-                            />
+                        <div className="relative">
+                            <Lock size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: "var(--text-3)" }} />
                             <input
                                 type={showPassword ? "text" : "password"}
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 placeholder="••••••••"
                                 required
-                                style={{
-                                    width: "100%",
-                                    padding: "14px 44px 14px 44px",
-                                    borderRadius: 12,
-                                    border: "1px solid var(--glass-border)",
-                                    background: "rgba(255,255,255,0.03)",
-                                    color: "var(--text-0)",
-                                    fontSize: 15,
-                                    outline: "none",
-                                    transition: "border 0.2s",
-                                    boxSizing: "border-box",
-                                }}
-                                onFocus={(e) =>
-                                    (e.target.style.borderColor = "#2563EB")
-                                }
-                                onBlur={(e) =>
-                                    (e.target.style.borderColor = "var(--glass-border)")
-                                }
+                                minLength={6}
+                                disabled={isLoading}
+                                className="input-sci-fi w-full py-3.5 pl-11 pr-11 text-[15px] outline-none"
+                                style={{ opacity: isLoading ? 0.7 : 1 }}
                             />
                             <button
                                 type="button"
                                 onClick={() => setShowPassword(!showPassword)}
-                                style={{
-                                    position: "absolute",
-                                    right: 14,
-                                    top: "50%",
-                                    transform: "translateY(-50%)",
-                                    background: "none",
-                                    border: "none",
-                                    cursor: "pointer",
-                                    color: "var(--text-3)",
-                                    padding: 0,
-                                }}
+                                disabled={isLoading}
+                                className="absolute right-3.5 top-1/2 -translate-y-1/2 bg-transparent border-none cursor-pointer p-0"
+                                style={{ color: "var(--text-3)" }}
                             >
                                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                             </button>
                         </div>
+                        {mode === "signup" && (
+                            <p className="text-[11px] mt-1.5" style={{ color: "var(--text-3)" }}>Minimum 6 caractères</p>
+                        )}
                     </div>
 
                     {/* Submit */}
                     <motion.button
                         type="submit"
                         disabled={isLoading}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
+                        whileHover={{ scale: isLoading ? 1 : 1.02 }}
+                        whileTap={{ scale: isLoading ? 1 : 0.98 }}
+                        className="w-full py-3.5 rounded-xl border-none text-white text-[15px] font-bold flex items-center justify-center gap-2 transition-opacity"
                         style={{
-                            width: "100%",
-                            padding: "14px 24px",
-                            borderRadius: 12,
-                            border: "none",
                             background: "linear-gradient(135deg, #2563EB, #7C3AED)",
-                            color: "white",
-                            fontSize: 15,
-                            fontWeight: 700,
                             cursor: isLoading ? "wait" : "pointer",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            gap: 8,
                             opacity: isLoading ? 0.7 : 1,
-                            transition: "opacity 0.2s",
                         }}
                     >
                         {isLoading ? (
-                            <motion.div
-                                animate={{ rotate: 360 }}
-                                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                            >
+                            <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
                                 <Sparkles size={18} />
                             </motion.div>
                         ) : (
@@ -288,44 +167,29 @@ export default function LoginPage() {
 
                 {/* Message */}
                 {message && (
-                    <motion.p
+                    <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
+                        className="mt-4 px-4 py-3 rounded-xl text-sm text-center flex items-center justify-center gap-2"
                         style={{
-                            marginTop: 16,
-                            padding: "12px 16px",
-                            borderRadius: 10,
-                            background: "rgba(37,99,235,0.1)",
-                            border: "1px solid rgba(37,99,235,0.2)",
-                            color: "#60A5FA",
-                            fontSize: 13,
-                            textAlign: "center",
+                            background: message.type === "success" ? "rgba(16,185,129,0.1)" : "rgba(239,68,68,0.1)",
+                            border: `1px solid ${message.type === "success" ? "rgba(16,185,129,0.2)" : "rgba(239,68,68,0.2)"}`,
+                            color: message.type === "success" ? "#34D399" : "#F87171",
                         }}
                     >
-                        {message}
-                    </motion.p>
+                        {message.type === "success" ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+                        {message.text}
+                    </motion.div>
                 )}
 
                 {/* Toggle */}
-                <p
-                    style={{
-                        textAlign: "center",
-                        marginTop: 24,
-                        fontSize: 14,
-                        color: "var(--text-2)",
-                    }}
-                >
+                <p className="text-center mt-6 text-sm" style={{ color: "var(--text-2)" }}>
                     {mode === "login" ? "Pas encore de compte ?" : "Déjà un compte ?"}{" "}
                     <button
-                        onClick={() => setMode(mode === "login" ? "signup" : "login")}
-                        style={{
-                            background: "none",
-                            border: "none",
-                            color: "#2563EB",
-                            cursor: "pointer",
-                            fontWeight: 600,
-                            fontSize: 14,
-                        }}
+                        onClick={toggleMode}
+                        disabled={isLoading}
+                        className="bg-transparent border-none font-semibold text-sm"
+                        style={{ color: "#2563EB", cursor: isLoading ? "wait" : "pointer", opacity: isLoading ? 0.7 : 1 }}
                     >
                         {mode === "login" ? "S'inscrire" : "Se connecter"}
                     </button>

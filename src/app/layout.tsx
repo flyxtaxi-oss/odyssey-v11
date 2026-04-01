@@ -2,10 +2,11 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 import CommandCenter from "@/components/CommandCenter";
-import { ThemeProvider } from "@/components/theme-provider";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { ToastProvider } from "@/components/Toast";
+import { ServiceWorkerRegistration } from "@/components/ServiceWorker";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://odyssey.ai"),
   title: "Odyssey.ai — Life Operating System",
   description:
     "Le premier Life Operating System dopé à l'IA. Expatriation, finance, carrière, réseau — tout piloté par J.A.R.V.I.S., votre intelligence artificielle personnelle.",
@@ -38,21 +39,14 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "Odyssey.ai",
-  },
-  formatDetection: {
-    telephone: false,
-  },
+  manifest: "/manifest.json",
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
-  themeColor: "#0b0e14",
+  themeColor: "#070B14",
 };
 
 export default function RootLayout({
@@ -61,28 +55,40 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr" suppressHydrationWarning>
+    <html lang="fr" className="dark">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
-      <body className="relative overflow-x-hidden antialiased">
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
-          {/* Stitch DeepSpace Atmospheric Layers */}
-          <div className="tech-grid" />
+      <body className="relative">
+        {/* Firebase Auth Provider */}
+        <AuthProvider>
+          {/* Toast Notifications */}
+          <ToastProvider>
+            {/* Service Worker for Offline/Push */}
+            <ServiceWorkerRegistration />
+            
+            {/* V9 Ultra-Futuristic Visual Layers */}
+            <div className="mesh-bg">
+              <div className="mesh-blob cyan" />
+              <div className="mesh-blob indigo" />
+            </div>
+            <div className="tech-grid" />
+            <div className="noise" />
 
-          <div className="relative z-10 flex min-h-screen">
-            <Sidebar />
-            {/* Spacer div to push content past the fixed sidebar - Hidden on mobile */}
-            <div className="hidden md:block w-[300px] shrink-0" />
-            <main className="flex-1 min-w-0 pb-24 md:pb-0">
-              <div className="w-full max-w-[1100px] mx-auto px-4 sm:px-6 md:px-8 py-6 md:py-10">
-                {children}
-              </div>
-            </main>
-          </div>
-        </ThemeProvider>
-      </body>
+            <div className="relative z-10 flex min-h-screen">
+              <Sidebar />
+              {/* Spacer div to push content past the fixed sidebar */}
+              <div className="w-[300px] shrink-0" />
+              <main className="flex-1 min-w-0">
+                <div className="max-w-[1100px] mx-auto px-8 py-10">
+                  {children}
+                </div>
+              </main>
+            </div>
+          </ToastProvider>
+        </AuthProvider>
+        </body>
     </html>
   );
 }

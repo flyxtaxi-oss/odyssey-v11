@@ -18,6 +18,7 @@ import {
     AlertCircle,
     ExternalLink,
 } from "lucide-react";
+import { getAuth } from "firebase/auth";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -134,9 +135,18 @@ export default function CommandCenter() {
         setError("");
 
         try {
+            // Get Firebase token for authentication
+            const auth = getAuth();
+            const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
+            
+            const headers: Record<string, string> = { "Content-Type": "application/json" };
+            if (token) {
+                headers["Authorization"] = `Bearer ${token}`;
+            }
+
             const res = await fetch("/api/agent/plan", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers,
                 body: JSON.stringify({ query: q }),
             });
             const data = await res.json();
@@ -197,9 +207,18 @@ export default function CommandCenter() {
         setPhase("executing");
 
         try {
+            // Get Firebase token for authentication
+            const auth = getAuth();
+            const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
+            
+            const headers: Record<string, string> = { "Content-Type": "application/json" };
+            if (token) {
+                headers["Authorization"] = `Bearer ${token}`;
+            }
+
             const res = await fetch("/api/agent/execute", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers,
                 body: JSON.stringify({
                     planId: actionPlan.id,
                     toolName: actionPlan.toolName,

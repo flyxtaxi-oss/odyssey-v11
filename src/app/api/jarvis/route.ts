@@ -18,6 +18,11 @@ import { detectLanguage, getJarvisLocaleInstruction } from "@/lib/i18n";
 // With: Cache ⚡ | Rate Limiting 🛡️ | Memory 🧠 | Smart Model Routing 🎯
 // ==============================================================================
 
+// ==============================================================================
+// J.A.R.V.I.S. — AI Chat Endpoint (Streaming)
+// With: Cache ⚡ | Rate Limiting 🛡️ | Memory 🧠 | Smart Model Routing 🎯
+// ==============================================================================
+
 const PERSONAS: Record<string, string> = {
     sage: `Tu es le SAGE, un mentor philosophique au niveau de Marcus Aurelius et Naval Ravikant. Tu analyses chaque situation en profondeur avec des frameworks mentaux puissants (First Principles, Inversion, Second-Order Thinking). Tu poses des questions socratiques qui forcent la réflexion. Style: profond, transformatif, wisdom-driven.`,
 
@@ -56,7 +61,43 @@ const SYSTEM_PROMPT = `Tu es J.A.R.V.I.S., l'Intelligence Artificielle core d'Od
 
 export async function POST(req: Request) {
     try {
-        const { messages, persona = "strategist", userId = "anonymous" } = await req.json();
+        // Validate and parse body
+        let body: unknown;
+        try {
+            body = await req.json();
+        } catch {
+            return new Response(
+                JSON.stringify({ error: "Invalid JSON body" }),
+                { status: 400, headers: { "Content-Type": "application/json", ...getSecurityHeaders() } }
+            );
+        }
+
+        // Import validation
+        const { JarvisChatSchema, validateInput } = await import("@/lib/validation");
+        const validation = validateInput(JarvisChatSchema, body);
+        
+        if (!validation.success) {
+            return new Response(
+                JSON.stringify({ error: "Validation failed", details: validation.errors }),
+                { status: 400, headers: { "Content-Type": "application/json", ...getSecurityHeaders() } }
+            );
+        }
+
+        const { messages, persona } = validation.data;
+        
+        // Get userId from Authorization header (Firebase token) - SECURED
+        const authHeader = req.headers.get("authorization");
+        let userId = "anonymous";
+        
+        if (authHeader?.startsWith("Bearer ")) {
+            const { verifyIdToken } = await import("@/lib/firebase-admin");
+            const idToken = authHeader.slice(7);
+            const decodedToken = await verifyIdToken(idToken);
+            
+            if (decodedToken) {
+                userId = decodedToken.uid || decodedToken.sub || "anonymous";
+            }
+        }
 
         // ─── Rate Limiting ─────────────────────────────────────────
         const rateCheck = checkRateLimit(userId);

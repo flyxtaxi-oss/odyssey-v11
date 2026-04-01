@@ -1,0 +1,98 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ========================================================================
+    // PROFILES - Users can read their own profile, public profiles readable
+    // ========================================================================
+    match /profiles/{userId} {
+      // Anyone can read profiles (for showing user info)
+      allow read: if true;
+      
+      // Users can only write their own profile
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // ========================================================================
+    // SIMULATIONS - Users can only access their own simulations
+    // ========================================================================
+    match /simulations/{simulationId} {
+      // Only authenticated users can read their simulations
+      allow read: if request.auth != null && resource.data.user_id == request.auth.uid;
+      
+      // Only authenticated users can create simulations
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.user_id;
+      
+      // Users can only update/delete their own simulations
+      allow update, delete: if request.auth != null && resource.data.user_id == request.auth.uid;
+    }
+    
+    // ========================================================================
+    // POSTS - Public read, authenticated create, own posts only for edit/delete
+    // ========================================================================
+    match /posts/{postId} {
+      // Anyone can read posts
+      allow read: if true;
+      
+      // Only authenticated users can create posts
+      allow create: if request.auth != null;
+      
+      // Users can only edit/delete their own posts
+      allow update, delete: if request.auth != null && resource.data.author_id == request.auth.uid;
+    }
+    
+    // ========================================================================
+    // SKILL TRACKS & MISSIONS - User-specific data
+    // ========================================================================
+    match /skill_tracks/{trackId} {
+      allow read: if request.auth != null && resource.data.user_id == request.auth.uid;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.user_id;
+      allow update, delete: if request.auth != null && resource.data.user_id == request.auth.uid;
+    }
+    
+    match /skill_missions/{missionId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null && resource.data.user_id == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.user_id == request.auth.uid;
+    }
+    
+    // ========================================================================
+    // LANGUAGE PROGRESS - User-specific learning data
+    // ========================================================================
+    match /language_progress/{progressId} {
+      allow read: if request.auth != null && resource.data.user_id == request.auth.uid;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.user_id;
+      allow update, delete: if request.auth != null && resource.data.user_id == request.auth.uid;
+    }
+    
+    // ========================================================================
+    // CHECKINS - Daily check-ins per user
+    // ========================================================================
+    match /checkins/{checkinId} {
+      allow read: if request.auth != null && resource.data.user_id == request.auth.uid;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.user_id;
+      allow update, delete: if request.auth != null && resource.data.user_id == request.auth.uid;
+    }
+    
+    // ========================================================================
+    // AUDIT LOG - System logs (readable by admins only)
+    // ========================================================================
+    match /audit_log/{logId} {
+      // Only authenticated users can read their own audit logs
+      allow read: if request.auth != null && resource.data.user_id == request.auth.uid;
+      allow create: if request.auth != null;
+      // No update or delete for audit logs
+    }
+    
+    // ========================================================================
+    // CONVERSATIONS - Chat history per user
+    // ========================================================================
+    match /conversations/{conversationId} {
+      allow read: if request.auth != null && resource.data.user_id == request.auth.uid;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.user_id;
+      allow update: if request.auth != null && resource.data.user_id == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.user_id == request.auth.uid;
+    }
+  }
+}

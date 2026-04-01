@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send, Mic, MicOff, Brain, User, Volume2, Copy, Check, Sparkles } from "lucide-react";
+import { getAuth } from "firebase/auth";
 
 type Message = {
     id: string;
@@ -50,9 +51,18 @@ export default function JarvisPage() {
         setIsLoading(true);
 
         try {
+            // Get Firebase token for authentication
+            const auth = getAuth();
+            const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
+            
+            const headers: Record<string, string> = { "Content-Type": "application/json" };
+            if (token) {
+                headers["Authorization"] = `Bearer ${token}`;
+            }
+
             const res = await fetch("/api/jarvis", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers,
                 body: JSON.stringify({
                     messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
                     persona: activePersona,
