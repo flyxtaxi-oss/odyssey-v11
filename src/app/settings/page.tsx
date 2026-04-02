@@ -13,8 +13,14 @@ import {
     Zap,
     Download,
     Lock,
+    Loader2,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { db, COLLECTIONS } from "@/lib/firebase";
+import { useRouter } from "next/navigation";
+import { logout } from "@/lib/firebase";
 
 const fadeUp = {
     hidden: { opacity: 0, y: 16 },
@@ -51,6 +57,8 @@ function Toggle({ enabled, onChange }: { enabled: boolean; onChange: () => void 
 }
 
 export default function SettingsPage() {
+    const { user } = useAuth();
+    const router = useRouter();
     const [toggles, setToggles] = useState<Record<string, boolean>>({
         memory: true,
         extraction: true,
@@ -59,8 +67,59 @@ export default function SettingsPage() {
         weekly: true,
         biometric: false,
     });
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    const [saveMsg, setSaveMsg] = useState("");
 
-    const toggle = (key: string) => setToggles((prev) => ({ ...prev, [key]: !prev[key] }));
+    // Load settings from Firestore
+    useEffect(() => {
+        if (!user) { setIsLoading(false); return; }
+        const loadSettings = async () => {
+            try {
+                const ref = doc(db, COLLECTIONS.PROFILES, user.uid);
+                const snap = await getDoc(ref);
+                if (snap.exists() && snap.data().settings) {
+                    setToggles(prev => ({ ...prev, ...snap.data().settings }));
+                }
+            } catch { /* ignore */ }
+            setIsLoading(false);
+        };
+        loadSettings();
+    }, [user]);
+
+    // Save settings to Firestore
+    const saveSettings = useCallback(async (newToggles: Record<string, boolean>) => {
+        if (!user) return;
+        setIsSaving(true);
+        try {
+            const ref = doc(db, COLLECTIONS.PROFILES, user.uid);
+            await setDoc(ref, { settings: newToggles, updated_at: new Date().toISOString() }, { merge: true });
+            setSaveMsg("Sauvegardé");
+            setTimeout(() => setSaveMsg(""), 2000);
+        } catch {
+            setSaveMsg("Erreur de sauvegarde");
+        }
+        setIsSaving(false);
+    }, [user]);
+
+    const toggle = (key: string) => {
+        const newToggles = { ...toggles, [key]: !toggles[key] };
+        setToggles(newToggles);
+        saveSettings(newToggles);
+    };
+
+    const handleLogout = async () => {
+        await logout();
+        router.push("/login");
+    };
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-[60vh]">
+                <Loader2 className="w-8 h-8 animate-spin text-[var(--text-3)]" />
+            </div>
+        );
+    }
 
     return (
         <motion.div variants={stagger} initial="hidden" animate="show" className="max-w-2xl mx-auto space-y-8">

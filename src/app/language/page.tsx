@@ -1,62 +1,139 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { Globe, BookOpen, MessageSquare, PlayCircle, Star, Flame, Award, ArrowRight } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Globe, BookOpen, MessageSquare, Star, Flame, Award, ArrowRight, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getAuth } from 'firebase/auth';
 
-// Mock Data
-const MOCK_PROFILE = {
-    target_language: 'English',
-    native_language: 'French',
-    current_level: 'B1',
-    streak_days: 14,
-    xp_points: 850,
-    daily_goal_progress: 60, // percentage
+type LanguageProfile = {
+    id: string;
+    target_language: string;
+    native_language: string;
+    current_level: string;
+    streak_days: number;
+    xp_points: number;
 };
 
-const FLASHCARDS = [
-    { id: 1, front: 'To entail', back: 'Impliquer, entraîner', next_review: '2023-11-20' },
-    { id: 2, front: 'Overwhelming', back: 'Écrasant, accablant', next_review: '2023-11-20' },
-    { id: 3, front: 'To commute', back: 'Faire le trajet (travail/domicile)', next_review: '2023-11-20' },
-];
+type Flashcard = {
+    id: string;
+    front: string;
+    back: string;
+    mastery_level: number;
+    next_review_at: string;
+};
 
-const SCENARIOS = [
-    { id: 1, title: 'Job Interview', level: 'B2', description: 'Practice a mock interview for a software engineering role.', icon: <Award className="w-5 h-5" /> },
-    { id: 2, title: 'Ordering in a Restaurant', level: 'A2', description: 'Order a 3-course meal and handle dietary restrictions.', icon: <MessageSquare className="w-5 h-5" /> },
-    { id: 3, title: 'Check-in at the Airport', level: 'B1', description: 'Handle luggage issues and boarding pass printing at the counter.', icon: <Globe className="w-5 h-5" /> },
-];
+type Scenario = {
+    id: number;
+    title: string;
+    level: string;
+    description: string;
+};
 
 export default function LanguageLabPage() {
     const [activeTab, setActiveTab] = useState('flashcards');
     const [learningMode, setLearningMode] = useState<'idle' | 'flashcards' | 'roleplay' | 'placement'>('idle');
     const [currentCardIndex, setCurrentCardIndex] = useState(0);
     const [showAnswer, setShowAnswer] = useState(false);
+    const [profile, setProfile] = useState<LanguageProfile>({
+        id: "", target_language: "English", native_language: "French",
+        current_level: "A1", streak_days: 0, xp_points: 0,
+    });
+    const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
+    const [scenarios] = useState<Scenario[]>([
+        { id: 1, title: "Job Interview", level: "B2", description: "Practice a mock interview for a software engineering role." },
+        { id: 2, title: "Ordering in a Restaurant", level: "A2", description: "Order a 3-course meal and handle dietary restrictions." },
+        { id: 3, title: "Check-in at the Airport", level: "B1", description: "Handle luggage issues and boarding pass printing." },
+    ]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    // Fetch language data from API
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const auth = getAuth();
+                const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
+                if (!token) { setIsLoading(false); return; }
+
+                const res = await fetch("/api/language", {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.profiles?.length > 0) {
+                        setProfile(data.profiles[0]);
+                    }
+                    if (data.progress?.length > 0) {
+                        setFlashcards(data.progress.map((p: Record<string, unknown>) => ({
+                            id: p.id as string,
+                            front: (p.front as string) || (p.word as string) || "Card",
+                            back: (p.back as string) || (p.translation as string) || "Translation",
+                            mastery_level: (p.mastery_level as number) || 0,
+                            next_review_at: (p.next_review_at as string) || new Date().toISOString(),
+                        })));
+                    }
+                }
+            } catch { /* ignore */ }
+            setIsLoading(false);
+        };
+        fetchData();
+    }, []);
+
+    // Fetch SRS cards for review
+    const fetchReviewCards = useCallback(async () => {
+        try {
+            const auth = getAuth();
+            const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
+            if (!token) return;
+
+            const res = await fetch("/api/language", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ action: "srs_review" }),
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.cards?.length > 0) {
+                    setFlashcards(data.cards.map((c: Record<string, unknown>) => ({
+                        id: c.id as string,
+                        front: (c.front as string) || (c.word as string) || "Card",
+                        back: (c.back as string) || (c.translation as string) || "Translation",
+                        mastery_level: (c.mastery_level as number) || 0,
+                        next_review_at: (c.next_review_at as string) || new Date().toISOString(),
+                    })));
+                }
+            }
+        } catch { /* ignore */ }
+    }, []);
+
+    const dailyGoalProgress = profile.xp_points > 0 ? Math.min(100, Math.round((profile.xp_points / 1000) * 100)) : 0;
 
     // Components for Learning Modes
     const FlashcardMode = () => {
-        if (currentCardIndex >= FLASHCARDS.length) {
+        if (flashcards.length === 0 || currentCardIndex >= flashcards.length) {
             return (
                 <div className="flex flex-col items-center justify-center py-20 text-center space-y-6">
                     <div className="w-20 h-20 bg-[var(--accent-emerald)]/20 text-[var(--accent-emerald)] rounded-full flex items-center justify-center mb-4">
                         <Star className="w-10 h-10" />
                     </div>
                     <h2 className="text-3xl font-bold text-[var(--text-0)]">Review Complete!</h2>
-                    <p className="text-[var(--text-2)] max-w-md">You've successfully reviewed all your due flashcards. +50 XP</p>
-                    <button onClick={() => setLearningMode('idle')} className="btn-stitch rounded-full px-8 py-4 text-lg mt-6">
+                    <p className="text-[var(--text-2)] max-w-md">
+                        {flashcards.length > 0 ? "You've reviewed all due flashcards. +50 XP" : "No cards to review. Create a language profile first."}
+                    </p>
+                    <button onClick={() => { setLearningMode('idle'); fetchReviewCards(); }} className="btn-stitch rounded-full px-8 py-4 text-lg mt-6">
                         Return to Dashboard
                     </button>
                 </div>
             );
         }
 
-        const card = FLASHCARDS[currentCardIndex];
+        const card = flashcards[currentCardIndex];
 
         return (
             <div className="max-w-2xl mx-auto py-10">
                 <div className="flex justify-between items-center mb-8">
                     <button className="btn-ghost-glow" onClick={() => setLearningMode('idle')}>Back</button>
                     <div className="text-sm font-medium text-[var(--text-3)]">
-                        Card {currentCardIndex + 1} of {FLASHCARDS.length}
+                        Card {currentCardIndex + 1} of {flashcards.length}
                     </div>
                     <div className="w-16" /> {/* Spacer */}
                 </div>
@@ -197,14 +274,14 @@ export default function LanguageLabPage() {
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                 <div className="glass-panel p-6 flex flex-col items-center justify-center text-center">
                                     <Globe className="w-8 h-8 text-[var(--accent-cyan)] mb-3" />
-                                    <div className="text-2xl font-bold text-[var(--text-0)]">{MOCK_PROFILE.target_language}</div>
+                                    <div className="text-2xl font-bold text-[var(--text-0)]">{profile.target_language}</div>
                                     <div className="text-sm font-bold text-[var(--text-3)] uppercase tracking-wider mt-1">Learning</div>
                                 </div>
 
                                 <div className="glow-card">
                                     <div className="glass-panel p-6 flex flex-col items-center justify-center text-center h-full">
                                         <div className="text-4xl font-black text-gradient-shimmer mb-1">
-                                            {MOCK_PROFILE.current_level}
+                                            {profile.current_level}
                                         </div>
                                         <div className="text-sm font-bold text-[var(--text-3)] uppercase tracking-wider mt-1">Current Level</div>
                                     </div>
@@ -215,13 +292,13 @@ export default function LanguageLabPage() {
                                         <Flame className="w-8 h-8 text-[var(--accent-rose)] mb-3 group-hover:scale-110 transition-transform" />
                                         <div className="absolute -top-1 -right-1 w-3 h-3 bg-[var(--tertiary)] rounded-full animate-pulse" />
                                     </div>
-                                    <div className="text-2xl font-bold text-[var(--text-0)]">{MOCK_PROFILE.streak_days}</div>
+                                    <div className="text-2xl font-bold text-[var(--text-0)]">{profile.streak_days}</div>
                                     <div className="text-sm font-bold text-[var(--text-3)] uppercase tracking-wider mt-1">Day Streak</div>
                                 </div>
 
                                 <div className="glass-panel p-6 flex flex-col items-center justify-center text-center">
                                     <Award className="w-8 h-8 text-[var(--accent-amber)] mb-3" />
-                                    <div className="text-2xl font-bold text-[var(--text-0)]">{MOCK_PROFILE.xp_points}</div>
+                                    <div className="text-2xl font-bold text-[var(--text-0)]">{profile.xp_points}</div>
                                     <div className="text-sm font-bold text-[var(--text-3)] uppercase tracking-wider mt-1">Total XP</div>
                                 </div>
                             </div>
@@ -251,16 +328,16 @@ export default function LanguageLabPage() {
                                                 </div>
                                                 <div>
                                                     <h2 className="text-xl font-bold text-[var(--text-0)]">Daily Review</h2>
-                                                    <p className="text-[var(--text-3)] text-sm">You have {FLASHCARDS.length} cards to review today.</p>
+                                                    <p className="text-[var(--text-3)] text-sm">You have {flashcards.length} cards to review today.</p>
                                                 </div>
                                             </div>
                                             <div className="my-8">
                                                 <div className="flex justify-between text-sm mb-3">
                                                     <span className="text-[var(--text-2)] font-semibold uppercase">Daily Goal</span>
-                                                    <span className="font-bold text-[var(--accent-emerald)]">{MOCK_PROFILE.daily_goal_progress}%</span>
+                                                    <span className="font-bold text-[var(--accent-emerald)]">{dailyGoalProgress}%</span>
                                                 </div>
                                                 <div className="h-2 bg-[var(--bg-3)] rounded-full overflow-hidden">
-                                                    <div className="h-full bg-[var(--accent-emerald)] rounded-full" style={{ width: `${MOCK_PROFILE.daily_goal_progress}%` }} />
+                                                    <div className="h-full bg-[var(--accent-emerald)] rounded-full" style={{ width: `${dailyGoalProgress}%` }} />
                                                 </div>
                                             </div>
                                             <button
@@ -279,10 +356,10 @@ export default function LanguageLabPage() {
                                     <div className="glass-panel p-8">
                                         <h2 className="text-xl font-bold text-[var(--text-0)] mb-6">Recent Cards</h2>
                                         <div className="space-y-4">
-                                            {FLASHCARDS.slice(0, 3).map(card => (
+                                            {flashcards.slice(0, 3).map(card => (
                                                 <div key={card.id} className="flex items-center justify-between p-4 rounded-xl bg-[var(--bg-2)] border border-[var(--border-0)] hover:border-[var(--border-1)] transition-colors">
                                                     <span className="font-medium text-[var(--text-1)]">{card.front}</span>
-                                                    <span className="text-xs font-mono-tech text-[var(--text-3)] px-3 py-1 bg-[var(--bg-3)] rounded-lg">{card.next_review}</span>
+                                                    <span className="text-xs font-mono-tech text-[var(--text-3)] px-3 py-1 bg-[var(--bg-3)] rounded-lg">{card.next_review_at ? new Date(card.next_review_at).toLocaleDateString("fr-FR") : "—"}</span>
                                                 </div>
                                             ))}
                                         </div>
@@ -292,7 +369,7 @@ export default function LanguageLabPage() {
 
                             {activeTab === 'roleplay' && (
                                 <div className="grid md:grid-cols-3 gap-6">
-                                    {SCENARIOS.map(scenario => (
+                                    {scenarios.map(scenario => (
                                         <div
                                             key={scenario.id}
                                             className="glass-panel p-6 flex flex-col justify-between cursor-pointer group hover:border-[var(--primary)] hover:shadow-[0_0_20px_rgba(143,245,255,0.08)] transition-all min-h-[220px]"
@@ -301,7 +378,7 @@ export default function LanguageLabPage() {
                                             <div>
                                                 <div className="flex justify-between items-start mb-5">
                                                     <div className="p-3 bg-[var(--bg-3)] rounded-2xl group-hover:bg-[var(--primary)]/20 transition-colors">
-                                                        <span className="text-[var(--accent-cyan)]">{scenario.icon}</span>
+                                                        <span className="text-[var(--accent-cyan)]"><MessageSquare className="w-5 h-5" /></span>
                                                     </div>
                                                     <span className="tag-cyber">{scenario.level}</span>
                                                 </div>
