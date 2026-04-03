@@ -30,6 +30,7 @@ export default function JarvisPage() {
     ]);
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [isStreaming, setIsStreaming] = useState(false);
     const [activePersona, setActivePersona] = useState("strategist");
     const [copiedId, setCopiedId] = useState<string | null>(null);
     const [isListening, setIsListening] = useState(false);
@@ -77,6 +78,7 @@ export default function JarvisPage() {
             let fullText = "";
 
             setMessages((prev) => [...prev, { id: assistantId, role: "assistant", content: "" }]);
+            setIsStreaming(true);
 
             if (reader) {
                 while (true) {
@@ -90,6 +92,7 @@ export default function JarvisPage() {
                     );
                 }
             }
+            setIsStreaming(false);
         } catch {
             setMessages((prev) => [
                 ...prev,
@@ -190,9 +193,9 @@ export default function JarvisPage() {
                         return (
                             <motion.div
                                 key={msg.id}
-                                initial={{ opacity: 0, y: 15 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                                initial={{ opacity: 0, y: 15, scale: 0.98 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
                                 className={`flex gap-4 ${isUser ? "flex-row-reverse" : ""}`}
                             >
                                 {/* Avatar */}

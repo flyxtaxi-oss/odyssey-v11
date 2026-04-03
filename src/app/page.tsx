@@ -129,12 +129,18 @@ const scoreAxes = [
 
 const stagger = {
   hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { staggerChildren: 0.12 } },
+  show: { opacity: 1, transition: { staggerChildren: 0.08 } },
 };
 
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] as const } },
+  show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] as const } },
+};
+
+const cardHover = {
+  rest: { scale: 1, y: 0 },
+  hover: { scale: 1.02, y: -6, transition: { type: "spring", stiffness: 400, damping: 20 } },
+  tap: { scale: 0.97, transition: { duration: 0.1 } },
 };
 
 export default function DashboardPage() {
@@ -184,17 +190,25 @@ export default function DashboardPage() {
 
       {/* ─── Stats Grid (Glow Cards) ─── */}
       <motion.div variants={fadeUp} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {stats.map((s) => (
+        {stats.map((s, i) => (
           <motion.div
             key={s.label}
-            whileHover={{ y: -6, scale: 1.02 }}
-            transition={{ type: "spring", stiffness: 400, damping: 25 }}
+            variants={{
+              hidden: { opacity: 0, y: 20 },
+              show: { opacity: 1, y: 0, transition: { delay: i * 0.1, duration: 0.5 } },
+            }}
+            initial="hidden"
+            animate="show"
+            whileHover="hover"
+            whileTap="tap"
+            custom={i}
           >
-            <div className="glow-card">
-              <div className="glass-panel p-7">
+            <div className="glow-card relative overflow-hidden group">
+              <div className="absolute inset-0 bg-gradient-to-br from-[var(--primary)]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              <div className="glass-panel p-7 relative z-10">
                 <div className="flex items-center justify-between mb-5">
                   <div
-                    className="w-12 h-12 rounded-2xl flex items-center justify-center"
+                    className="w-12 h-12 rounded-2xl flex items-center justify-center transition-transform duration-300 group-hover:scale-110"
                     style={{ background: 'rgba(37, 99, 235, 0.15)' }}
                   >
                     <s.icon className="w-6 h-6 text-[var(--accent-indigo)]" />
@@ -229,21 +243,31 @@ export default function DashboardPage() {
           <span className="tag-cyber">6 Modules</span>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {engines.map((e) => (
+          {engines.map((e, i) => (
             <Link key={e.href} href={e.href}>
               <motion.div
-                whileHover={{ y: -6, scale: 1.02 }}
+                variants={{
+                  hidden: { opacity: 0, scale: 0.95 },
+                  show: { opacity: 1, scale: 1, transition: { delay: i * 0.08, duration: 0.4 } },
+                }}
+                initial="hidden"
+                animate="show"
+                whileHover={{ y: -8, scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
                 className={`${e.gradientClass} rounded-[20px] p-7 cursor-pointer group relative h-full min-h-[180px] flex flex-col justify-between shadow-lg`}
               >
                 {/* Subtle white overlay for depth */}
-                <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent rounded-[20px]" />
+                <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent" />
 
                 <div className="relative z-10 flex items-center justify-between mb-auto">
-                  <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                  <motion.div 
+                    className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center"
+                    whileHover={{ scale: 1.1, rotate: 5 }}
+                    transition={{ type: "spring", stiffness: 400 }}
+                  >
                     <e.icon className="w-7 h-7 text-white" />
-                  </div>
+                  </motion.div>
                   <span className="text-xs uppercase font-bold tracking-wider px-3 py-1.5 rounded-lg bg-white/20 backdrop-blur-sm text-white">
                     {e.tag}
                   </span>
@@ -287,7 +311,12 @@ export default function DashboardPage() {
 
             <div className="space-y-6">
               {scoreAxes.map((axis, i) => (
-                <div key={axis.label}>
+                <motion.div
+                  key={axis.label}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.5 + i * 0.1, duration: 0.5 }}
+                >
                   <div className="flex justify-between mb-2.5">
                     <span className="text-sm font-semibold text-[var(--text-2)]">{axis.label}</span>
                     <span className="text-sm font-bold text-[var(--text-0)]">{axis.value}%</span>
@@ -296,12 +325,12 @@ export default function DashboardPage() {
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${axis.value}%` }}
-                      transition={{ duration: 1.5, ease: [0.16, 1, 0.3, 1], delay: 0.3 + i * 0.1 }}
+                      transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.3 + i * 0.1 }}
                       className="h-full rounded-full"
                       style={{ background: axis.gradient }}
                     />
                   </div>
-                </div>
+                </motion.div>
               ))}
             </div>
           </div>
