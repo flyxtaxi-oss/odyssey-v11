@@ -244,9 +244,10 @@ export default function SafeZonePage() {
                     {posts.map((post, i) => (
                         <motion.div
                             key={post.id}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: i * 0.05, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                            initial={{ opacity: 0, y: 20, scale: 0.98 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            whileHover={{ y: -2, scale: 1.01 }}
+                            transition={{ delay: i * 0.05, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
                             className="glass-panel p-6 space-y-4 group/post bg-[var(--bg-0)] border border-[var(--border-1)] shadow-none hover:bg-[var(--bg-1)] transition-colors duration-300"
                         >
                             {/* Author Info */}
