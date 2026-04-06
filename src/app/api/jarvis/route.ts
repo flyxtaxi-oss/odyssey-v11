@@ -12,6 +12,7 @@ import {
 } from "@/lib/ai-engine";
 import { checkPromptInjection, logAuditEntry, getSecurityHeaders } from "@/lib/security";
 import { detectLanguage, getJarvisLocaleInstruction } from "@/lib/i18n";
+import { getContextForQuery, updateGraphFromConversation } from "@/lib/graph-rag";
 
 // ==============================================================================
 // J.A.R.V.I.S. — AI Chat Endpoint (Streaming)
@@ -190,12 +191,14 @@ export async function POST(req: Request) {
 
         // ─── Memory Context ────────────────────────────────────────
         const memoryContext = getMemoryContext(userId);
+        const graphRagContext = getContextForQuery(userId, lastUserMessage?.content || "");
         const personaPrompt = PERSONAS[persona] || PERSONAS.strategist;
         const fullSystemPrompt = [
             SYSTEM_PROMPT,
             `\nPersona active: ${personaPrompt}`,
             `\n${localeInstruction}`,
             memoryContext ? `\nMémoire contextuelle:\n${memoryContext}` : "",
+            graphRagContext ? `\n${graphRagContext}` : "",
         ]
             .filter(Boolean)
             .join("\n");
@@ -219,6 +222,7 @@ export async function POST(req: Request) {
                 result.text.then((text: string) => {
                     setCachedResponse(messages, persona, text);
                     updateMemory(userId, lastUserMsg.content, text);
+                    updateGraphFromConversation(userId, lastUserMsg.content, text);
                 });
             }
 
@@ -227,6 +231,7 @@ export async function POST(req: Request) {
                     "X-Cache": "MISS",
                     "X-Model": modelConfig.displayName,
                     "X-RateLimit-Remaining": String(rateCheck.remaining),
+                    "X-GraphRAG": "enabled",
                 },
             });
         }
@@ -245,6 +250,7 @@ export async function POST(req: Request) {
                 result.text.then((text: string) => {
                     setCachedResponse(messages, persona, text);
                     updateMemory(userId, lastUserMsg.content, text);
+                    updateGraphFromConversation(userId, lastUserMsg.content, text);
                 });
             }
 
@@ -253,6 +259,7 @@ export async function POST(req: Request) {
                     "X-Cache": "MISS",
                     "X-Model": modelConfig.displayName,
                     "X-RateLimit-Remaining": String(rateCheck.remaining),
+                    "X-GraphRAG": "enabled",
                 },
             });
         }
@@ -274,6 +281,7 @@ export async function POST(req: Request) {
         const lastUserMsg = messages?.filter((m: { role: string }) => m.role === "user").pop();
         if (lastUserMsg) {
             updateMemory(userId, lastUserMsg.content, mockText);
+            updateGraphFromConversation(userId, lastUserMsg.content, mockText);
         }
 
         const encoder = new TextEncoder();

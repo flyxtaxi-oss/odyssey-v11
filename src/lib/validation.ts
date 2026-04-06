@@ -57,6 +57,38 @@ export const CreateSimulationSchema = z.object({
 
 export type CreateSimulationInput = z.infer<typeof CreateSimulationSchema>;
 
+// ─── Prediction Simulation Schemas ──────────────────────────────────────────
+
+export const PredictionScenarioSchema = z.enum([
+  "relocation",
+  "career",
+  "investment",
+  "lifestyle",
+  "social",
+]);
+
+export const UserProfileSchema = z.object({
+  nationality: z.string().min(1).max(50),
+  current_location: z.string().min(1).max(50),
+  budget: z.number().min(0),
+  income: z.number().min(0),
+  skills: z.array(z.string()).min(0).max(20),
+  goals: z.array(z.string()).min(0).max(10),
+  family_status: z.string().min(1).max(50),
+  language_level: z.record(z.string(), z.number().min(0).max(100)),
+});
+
+export const CreatePredictionSchema = z.object({
+  query: z.string().min(10).max(500),
+  user_profile: UserProfileSchema,
+  scenario: PredictionScenarioSchema,
+  destination: z.string().min(1).max(50),
+  time_horizon: z.number().min(1).max(120).default(12),
+  rounds: z.number().min(10).max(100).default(50),
+});
+
+export type CreatePredictionInput = z.infer<typeof CreatePredictionSchema>;
+
 // ─── Skill Schemas ───────────────────────────────────────────────────────────
 
 export const CreateSkillTrackSchema = z.object({

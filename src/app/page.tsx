@@ -78,6 +78,14 @@ const engines = [
     tag: "SYS ACTIVE",
   },
   {
+    label: "Prédire le Futur",
+    desc: "Simulation multi-agents IA",
+    href: "/simulator/predict",
+    icon: Sparkles,
+    gradientClass: "module-card-purple",
+    tag: "NEW",
+  },
+  {
     label: "Simulateur de Vie",
     desc: "Moteur prédictif multipays",
     href: "/simulator",
