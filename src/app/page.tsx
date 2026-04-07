@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 
 /* ─── Animated Number Counter ─── */
 function AnimatedCounter({ value, suffix = "" }: { value: number; suffix?: string }) {
@@ -152,6 +153,7 @@ const cardHover = {
 };
 
 export default function DashboardPage() {
+  const { user } = useAuth();
   const [data, setData] = useState<DashboardData>(FALLBACK);
   const [isLive, setIsLive] = useState(false);
 
@@ -189,7 +191,7 @@ export default function DashboardPage() {
           <span className="text-sm font-semibold text-[var(--accent-emerald)]">Système en ligne</span>
         </div>
         <h1 className="text-[clamp(3rem,7vw,4.5rem)] font-extrabold tracking-tight leading-[1.05] text-[var(--text-0)]">
-          Bonjour, <span className="text-gradient-shimmer">Jibril</span>.
+          Bonjour, <span className="text-gradient-shimmer">{user?.displayName || user?.email?.split('@')[0] || 'Explorateur'}</span>.
         </h1>
         <p className="text-lg text-[var(--text-3)] mt-4 max-w-xl leading-relaxed">
           Tous vos modules sont synchronisés. Explorez vos données et prenez les meilleures décisions.

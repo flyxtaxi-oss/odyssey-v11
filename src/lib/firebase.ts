@@ -1,6 +1,6 @@
 // ==============================================================================
 // FIREBASE CONFIGURATION — Odyssey.ai
-// Replace Supabase with Firebase for Auth + Firestore
+// Auth (Email + Google) + Firestore
 // ==============================================================================
 
 import { initializeApp, getApps, FirebaseApp } from "firebase/app";
@@ -13,6 +13,10 @@ import {
   User,
   NextOrObserver,
   AuthError,
+  GoogleAuthProvider,
+  signInWithPopup,
+  sendPasswordResetEmail,
+  updateProfile,
 } from "firebase/auth";
 import {
   getFirestore,
@@ -30,8 +34,6 @@ import {
   QueryConstraint,
 } from "firebase/firestore";
 
-// ─── Firebase Configuration ────────────────────────────────────────────────────
-
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyDXch5wQxmCzJJ8MttAly0fD_Ej09iUu8o",
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "jarvis-53b7c.firebaseapp.com",
@@ -42,13 +44,10 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || "G-3WGS3MWDH0",
 };
 
-// ─── Initialize Firebase ───────────────────────────────────────────────────────
-
 let app: FirebaseApp;
 let auth: ReturnType<typeof getAuth>;
 let db: Firestore;
 
-// Prevent multiple initializations during Next.js hot reload
 if (!getApps().length) {
   app = initializeApp(firebaseConfig);
   auth = getAuth(app);
@@ -59,86 +58,81 @@ if (!getApps().length) {
   db = getFirestore(app);
 }
 
-// ─── Auth Functions ────────────────────────────────────────────────────────────
-
 export type AuthResult = {
   user: User | null;
   error: AuthError | null;
   message: string;
 };
 
-/**
- * Sign in with email and password
- */
 export async function signIn(email: string, password: string): Promise<AuthResult> {
   try {
     const result = await signInWithEmailAndPassword(auth, email, password);
-    return {
-      user: result.user,
-      error: null,
-      message: "Connexion réussie!",
-    };
+    return { user: result.user, error: null, message: "Connexion réussie!" };
   } catch (error) {
     const authError = error as AuthError;
-    return {
-      user: null,
-      error: authError,
-      message: getAuthErrorMessage(authError.code),
-    };
+    return { user: null, error: authError, message: getAuthErrorMessage(authError.code) };
   }
 }
 
-/**
- * Create new account with email and password
- */
 export async function signUp(email: string, password: string): Promise<AuthResult> {
   try {
     const result = await createUserWithEmailAndPassword(auth, email, password);
-    
-    // Create user profile in Firestore
     await createUserProfile(result.user);
-    
-    return {
-      user: result.user,
-      error: null,
-      message: "Compte créé avec succès!",
-    };
+    return { user: result.user, error: null, message: "Compte créé avec succès!" };
   } catch (error) {
     const authError = error as AuthError;
-    return {
-      user: null,
-      error: authError,
-      message: getAuthErrorMessage(authError.code),
-    };
+    return { user: null, error: authError, message: getAuthErrorMessage(authError.code) };
   }
 }
 
-/**
- * Sign out current user
- */
+export async function signInWithGoogle(): Promise<AuthResult> {
+  try {
+    const provider = new GoogleAuthProvider();
+    provider.addScope('profile');
+    provider.addScope('email');
+    provider.setCustomParameters({ prompt: 'select_account' });
+    const result = await signInWithPopup(auth, provider);
+    await createUserProfile(result.user);
+    return { user: result.user, error: null, message: "Connexion avec Google réussie!" };
+  } catch (error) {
+    const authError = error as AuthError;
+    if (authError.code === 'auth/popup-closed-by-user') {
+      return { user: null, error: authError, message: "Connexion annulée." };
+    }
+    return { user: null, error: authError, message: getAuthErrorMessage(authError.code) };
+  }
+}
+
+export async function resetPassword(email: string): Promise<{ success: boolean; message: string }> {
+  try {
+    await sendPasswordResetEmail(auth, email);
+    return { success: true, message: "Email de réinitialisation envoyé!" };
+  } catch (error) {
+    const authError = error as AuthError;
+    return { success: false, message: getAuthErrorMessage(authError.code) };
+  }
+}
+
+export async function updateDisplayName(name: string): Promise<void> {
+  const user = auth.currentUser;
+  if (user) {
+    await updateProfile(user, { displayName: name });
+    await updateUserProfile(user.uid, { full_name: name });
+  }
+}
+
 export async function logout(): Promise<void> {
   await signOut(auth);
 }
 
-/**
- * Listen to auth state changes
- */
 export function onAuthChange(callback: NextOrObserver<User>): () => void {
   return onAuthStateChanged(auth, callback);
 }
 
-/**
- * Get current user
- */
 export function getCurrentUser(): User | null {
   return auth.currentUser;
 }
 
-// ─── Firestore Functions ───────────────────────────────────────────────────────
-
-/**
- * Create user profile document
- */
 export async function createUserProfile(user: User): Promise<void> {
   const userRef = doc(db, "profiles", user.uid);
   await setDoc(userRef, {
@@ -147,75 +141,35 @@ export async function createUserProfile(user: User): Promise<void> {
     full_name: user.displayName || null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-    // Default Odyssey values
     odyssey_score: 500,
     mental_clarity: 50,
     countries_simulated: 0,
     network_nodes: 0,
-    // Preferences
-    preferences: {
-      language: "fr",
-      theme: "dark",
-    },
-  });
+    preferences: { language: "fr", theme: "dark" },
+  }, { merge: true });
 }
 
-/**
- * Get user profile
- */
 export async function getUserProfile(userId: string): Promise<DocumentData | null> {
   const docRef = doc(db, "profiles", userId);
   const docSnap = await getDoc(docRef);
   return docSnap.exists() ? docSnap.data() : null;
 }
 
-/**
- * Update user profile
- */
-export async function updateUserProfile(
-  userId: string,
-  data: Partial<DocumentData>
-): Promise<void> {
+export async function updateUserProfile(userId: string, data: Partial<DocumentData>): Promise<void> {
   const userRef = doc(db, "profiles", userId);
-  await setDoc(
-    userRef,
-    {
-      ...data,
-      updated_at: new Date().toISOString(),
-    },
-    { merge: true }
-  );
+  await setDoc(userRef, { ...data, updated_at: new Date().toISOString() }, { merge: true });
 }
 
-/**
- * Generic Firestore read function
- */
-export async function firestoreRead(
-  collectionName: string,
-  constraints: QueryConstraint[] = []
-): Promise<DocumentData[]> {
+export async function firestoreRead(collectionName: string, constraints: QueryConstraint[] = []): Promise<DocumentData[]> {
   const q = query(collection(db, collectionName), ...constraints);
   const snapshot = await getDocs(q);
   return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 }
 
-/**
- * Generic Firestore write function
- */
-export async function firestoreWrite(
-  collectionName: string,
-  docId: string,
-  data: DocumentData
-): Promise<void> {
+export async function firestoreWrite(collectionName: string, docId: string, data: DocumentData): Promise<void> {
   const docRef = doc(db, collectionName, docId);
-  await setDoc(docRef, {
-    ...data,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  });
+  await setDoc(docRef, { ...data, created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
 }
-
-// ─── Collections Helpers ────────────────────────────────────────────────────────
 
 export const COLLECTIONS = {
   PROFILES: "profiles",
@@ -233,8 +187,6 @@ export const COLLECTIONS = {
   AUDIT_LOG: "audit_log",
 };
 
-// ─── Error Messages ────────────────────────────────────────────────────────────
-
 function getAuthErrorMessage(code: string): string {
   const messages: Record<string, string> = {
     "auth/email-already-in-use": "Cet email est déjà utilisé.",
@@ -247,11 +199,10 @@ function getAuthErrorMessage(code: string): string {
     "auth/invalid-credential": "Identifiants incorrects.",
     "auth/too-many-requests": "Trop de tentatives. Réessaie plus tard.",
     "auth/network-request-failed": "Erreur de connexion réseau.",
+    "auth/popup-closed-by-user": "Connexion annulée.",
   };
   return messages[code] || "Une erreur est survenue.";
 }
-
-// ─── Export Firebase instances ─────────────────────────────────────────────────
 
 export { app, auth, db };
 export type { User };

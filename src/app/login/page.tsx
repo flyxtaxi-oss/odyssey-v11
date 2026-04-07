@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Mail, Lock, ArrowRight, Sparkles, Eye, EyeOff, AlertCircle, CheckCircle } from "lucide-react";
-import { signIn, signUp, onAuthChange, type AuthResult } from "@/lib/firebase";
+import { signIn, signUp, signInWithGoogle, onAuthChange, type AuthResult } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
@@ -35,6 +35,25 @@ export default function LoginPage() {
                 result = await signUp(email, password);
             }
 
+            if (result.error) {
+                setMessage({ type: "error", text: result.message });
+            } else {
+                setMessage({ type: "success", text: result.message });
+                setTimeout(() => router.push("/"), 1000);
+            }
+        } catch {
+            setMessage({ type: "error", text: "Une erreur inattendue est survenue." });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleGoogleSignIn = async () => {
+        setIsLoading(true);
+        setMessage(null);
+
+        try {
+            const result = await signInWithGoogle();
             if (result.error) {
                 setMessage({ type: "error", text: result.message });
             } else {
@@ -162,6 +181,35 @@ export default function LoginPage() {
                                 <ArrowRight size={18} />
                             </>
                         )}
+                    </motion.button>
+
+                    {/* Divider */}
+                    <div className="flex items-center gap-3 my-5">
+                        <div className="flex-1 h-px" style={{ background: "var(--border-0)" }} />
+                        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-3)" }}>ou</span>
+                        <div className="flex-1 h-px" style={{ background: "var(--border-0)" }} />
+                    </div>
+
+                    {/* Google Button */}
+                    <motion.button
+                        type="button"
+                        onClick={handleGoogleSignIn}
+                        disabled={isLoading}
+                        whileHover={{ scale: isLoading ? 1 : 1.02 }}
+                        whileTap={{ scale: isLoading ? 1 : 0.98 }}
+                        className="w-full py-3.5 rounded-xl text-[15px] font-bold flex items-center justify-center gap-3 transition-all border"
+                        style={{
+                            background: "var(--bg-2)",
+                            borderColor: "var(--border-0)",
+                            color: "var(--text-0)",
+                            cursor: isLoading ? "wait" : "pointer",
+                            opacity: isLoading ? 0.7 : 1,
+                        }}
+                    >
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <path d="M18.1713 8.36791H17.5001V8.33325H10.0001V11.6666H14.7096C14.0225 13.607 12.1763 14.9999 10.0001 14.9999C7.23882 14.9999 5.00007 12.7612 5.00007 9.99992C5.00007 7.23867 7.23882 4.99992 10.0001 4.99992C11.2746 4.99992 12.4342 5.48075 13.3171 6.26617L15.6742 3.909C14.1859 2.52217 12.1951 1.66659 10.0001 1.66659C5.39799 1.66659 1.66675 5.39784 1.66675 9.99992C1.66675 14.602 5.39799 18.3333 10.0001 18.3333C14.6021 18.3333 18.3334 14.602 18.3334 9.99992C18.3334 9.44117 18.2763 8.89575 18.1713 8.36791Z" fill="currentColor"/>
+                        </svg>
+                        Continuer avec Google
                     </motion.button>
                 </form>
 

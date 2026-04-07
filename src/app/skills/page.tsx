@@ -14,6 +14,7 @@ import {
     BrainCircuit,
     Award
 } from 'lucide-react';
+import { useAuth } from "@/contexts/AuthContext";
 
 type SkillTrack = {
     id: string;
@@ -32,9 +33,11 @@ type Mission = {
     is_completed: boolean;
 };
 
-const USER_ID = 'test-user-id'; // Using same placeholder as language lab
+const USER_ID = 'test-user-id';
 
 export default function SkillAccelerator() {
+    const { user } = useAuth();
+    const effectiveUserId = user?.uid || USER_ID;
     const [tracks, setTracks] = useState<SkillTrack[]>([]);
     const [missions, setMissions] = useState<Mission[]>([]);
     const [loading, setLoading] = useState(true);
@@ -47,7 +50,7 @@ export default function SkillAccelerator() {
 
     const fetchData = async () => {
         try {
-            const res = await fetch(`/api/skills?userId=${USER_ID}`);
+            const res = await fetch(`/api/skills?userId=${effectiveUserId}`);
             const data = await res.json();
             if (data.tracks) setTracks(data.tracks);
             if (data.missions) setMissions(data.missions);
@@ -73,7 +76,7 @@ export default function SkillAccelerator() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     action: 'create_track',
-                    user_id: USER_ID,
+                    user_id: effectiveUserId,
                     skill_name: newSkillName.trim()
                 })
             });
