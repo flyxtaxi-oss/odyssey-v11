@@ -1,229 +1,147 @@
-// ==============================================================================
-// SERVICE WORKER — Odyssey.v11 Offline Support
-// ==============================================================================
+const CACHE_NAME = "odyssey-v11-cache-v1.0.1"; // Aligné avec offlineConfig.version
 
-const CACHE_NAME = "odyssey-v1";
-const STATIC_ASSETS = [
+// Fichiers critiques à mettre en cache immédiatement (Cache-First)
+const PRECACHE_URLS = [
   "/",
-  "/login",
-  "/jarvis",
-  "/simulator",
-  "/safezone",
-  "/skills",
-  "/language",
-  "/settings",
-  "/globals.css",
-  "/favicon.ico",
+  "/manifest.json",
+  // TODO: Tu pourras ajouter tes assets statiques ici (icônes, fonts, etc.)
+  "/offline" // Page de fallback si tout échoue
 ];
 
-// ─── Install Event — Cache static assets ────────────────────────────────────
-
 self.addEventListener("install", (event) => {
-  console.log("[SW] Installing...");
-
+  console.log("👷 [Odyssey SW] Installation en cours...");
   event.waitUntil(
-    caches
-      .open(CACHE_NAME)
-      .then((cache) => {
-        console.log("[SW] Caching static assets");
-        return cache.addAll(STATIC_ASSETS);
-      })
-      .then(() => {
-        console.log("[SW] Installation complete");
-        return self.skipWaiting();
-      })
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(PRECACHE_URLS);
+    })
   );
+  self.skipWaiting();
 });
-
-// ─── Activate Event — Clean old caches ──────────────────────────────────────
 
 self.addEventListener("activate", (event) => {
-  console.log("[SW] Activating...");
-
+  console.log("🚀 [Odyssey SW] Activé");
+  // Nettoyage des anciens caches si CACHE_NAME change
   event.waitUntil(
-    caches
-      .keys()
-      .then((cacheNames) => {
-        return Promise.all(
-          cacheNames
-            .filter((name) => name !== CACHE_NAME)
-            .map((name) => {
-              console.log("[SW] Deleting old cache:", name);
-              return caches.delete(name);
-            })
-        );
-      })
-      .then(() => {
-        console.log("[SW] Activation complete");
-        return self.clients.claim();
-      })
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
   );
+  self.clients.claim();
 });
 
-// ─── Fetch Event — Network-first strategy with cache fallback ───────────────
-
 self.addEventListener("fetch", (event) => {
-  const { request } = event;
-  const url = new URL(request.url);
+  const url = new URL(event.request.url);
 
-  // Skip non-GET requests
-  if (request.method !== "GET") {
-    return;
-  }
-
-  // Skip Chrome extensions
-  if (url.protocol === "chrome-extension:") {
-    return;
-  }
-
-  // API requests — Network first, no cache
-  if (url.pathname.startsWith("/api/")) {
+  // 1. API JARVIS : Network-First (L'IA a besoin d'internet, fallback sur le cache si offline)
+  if (url.pathname.startsWith("/api/jarvis") || url.pathname.startsWith("/api/agent")) {
     event.respondWith(
-      fetch(request).catch(() => {
-        // Return offline response for API
-        return new Response(
-          JSON.stringify({
-            error: "Offline mode",
-            offline: true,
-          }),
-          {
-            status: 503,
-            headers: { "Content-Type": "application/json" },
-          }
-        );
+      fetch(event.request).catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // 2. API User & Dashboard : Stale-while-revalidate (Affiche le cache direct, met à jour en fond)
+  if (url.pathname.startsWith("/api/user") || url.pathname.startsWith("/api/profile") || url.pathname.startsWith("/api/review")) {
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        const fetchPromise = fetch(event.request).then((networkResponse) => {
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, networkResponse.clone());
+          });
+          return networkResponse;
+        }).catch(() => null); // Ignore si offline
+        return cachedResponse || fetchPromise;
       })
     );
     return;
   }
 
-  // Static assets — Cache first, network fallback
+  // 3. Statique et reste de l'app : Cache-First, fallback Network
   event.respondWith(
-    caches.match(request).then((cachedResponse) => {
-      if (cachedResponse) {
-        // Return cached response and update cache in background
-        fetch(request)
-          .then((networkResponse) => {
-            if (networkResponse.ok) {
-              caches.open(CACHE_NAME).then((cache) => {
-                cache.put(request, networkResponse);
-              });
-            }
-          })
-          .catch(() => {
-            // Network failed, cached response is already returned
-          });
-        return cachedResponse;
-      }
-
-      // Not in cache, fetch from network
-      return fetch(request)
-        .then((networkResponse) => {
-          if (!networkResponse || networkResponse.status !== 200) {
-            return networkResponse;
-          }
-
-          // Clone response and cache it
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, responseToCache);
-          });
-
-          return networkResponse;
-        })
-        .catch(() => {
-          // Network failed, try to return offline page
-          if (request.mode === "navigate") {
-            return caches.match("/");
-          }
-          return new Response("Offline", { status: 503 });
-        });
+    caches.match(event.request).then((response) => {
+      return response || fetch(event.request).catch(() => {
+        // Fallback sur la page /offline si l'utilisateur navigue sans réseau
+        if (event.request.mode === "navigate") {
+          return caches.match("/offline");
+        }
+      });
     })
   );
 });
 
-// ─── Background Sync ────────────────────────────────────────────────────────
-
+// --- Background Sync (Synchronisation hors-ligne) ---
 self.addEventListener("sync", (event) => {
-  console.log("[SW] Background sync:", event.tag);
-
-  if (event.tag === "sync-data") {
-    event.waitUntil(syncData());
+  console.log("🔄 [Odyssey SW] Background Sync déclenché :", event.tag);
+  if (event.tag === "action_engine_tasks") {
+    event.waitUntil(syncOfflineActions());
   }
 });
 
-async function syncData() {
-  // Notify all clients to sync their data
-  const clients = await self.clients.matchAll();
-  clients.forEach((client) => {
-    client.postMessage({
-      type: "SYNC_REQUIRED",
-    });
+async function syncOfflineActions() {
+  console.log("🚀 [Odyssey SW] Exécution des actions hors-ligne en attente...");
+  
+  return new Promise((resolve, reject) => {
+    // On se connecte directement à la DB générée par offline-db.ts
+    const request = indexedDB.open("odyssey-offline", 1);
+    
+    request.onsuccess = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains("sync-queue")) return resolve();
+      
+      const tx = db.transaction("sync-queue", "readonly");
+      const store = tx.objectStore("sync-queue");
+      const getAll = store.getAll();
+
+      getAll.onsuccess = async () => {
+        const queue = getAll.result;
+        for (const item of queue) {
+          try {
+            const response = await fetch(`/api/${item.store}`, {
+              method: item.action === "delete" ? "DELETE" : "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(item.data),
+            });
+            if (response.ok) {
+              // Supprime l'action de la file d'attente une fois synchronisée
+              const delTx = db.transaction("sync-queue", "readwrite");
+              delTx.objectStore("sync-queue").delete(item.id);
+            }
+          } catch (err) {
+            console.error(`❌ [Odyssey SW] Échec de la synchro pour ${item.id}`, err);
+          }
+        }
+        resolve();
+      };
+    };
+    request.onerror = () => reject();
   });
 }
 
-// ─── Push Notifications ─────────────────────────────────────────────────────
+// ==============================================================================
+// PUSH NOTIFICATIONS — Web Push API Interceptor
+// ==============================================================================
 
 self.addEventListener("push", (event) => {
-  console.log("[SW] Push received:", event);
-
-  const data = event.data?.json() || {};
-  const title = data.title || "Odyssey";
+  console.log("🔔 [Odyssey SW] Notification Push reçue !");
+  const data = event.data ? event.data.json() : {};
+  
   const options = {
-    body: data.body || "Nouvelle notification",
-    icon: "/icon-192x192.png",
-    badge: "/badge-72x72.png",
-    tag: data.tag || "default",
-    data: data.data || {},
-    actions: data.actions || [],
+    body: data.body || "JARVIS a un message important pour vous.",
+    icon: "/icon.png", // Icone de l'app
+    badge: "/badge.png", // Petite icône monochrome pour la barre de statut
+    data: data.url || "/", // URL à ouvrir quand on clique
   };
-
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(self.registration.showNotification(data.title || "Odyssey.ai", options));
 });
-
-// ─── Notification Click ─────────────────────────────────────────────────────
 
 self.addEventListener("notificationclick", (event) => {
-  console.log("[SW] Notification click:", event);
-
   event.notification.close();
-
-  const notificationData = event.notification.data;
-  let url = "/";
-
-  if (notificationData?.url) {
-    url = notificationData.url;
-  }
-
-  event.waitUntil(
-    self.clients
-      .matchAll({ type: "window", includeUncontrolled: true })
-      .then((clientList) => {
-        // Focus existing client if open
-        for (const client of clientList) {
-          if (client.url === url && "focus" in client) {
-            return client.focus();
-          }
-        }
-        // Open new window
-        if (self.clients.openWindow) {
-          return self.clients.openWindow(url);
-        }
-      })
-  );
+  // Ouvre la page Odyssey correspondante (ex: /visa)
+  event.waitUntil(self.clients.openWindow(event.notification.data));
 });
-
-// ─── Message from Client ────────────────────────────────────────────────────
-
-self.addEventListener("message", (event) => {
-  console.log("[SW] Message from client:", event.data);
-
-  if (event.data?.type === "SKIP_WAITING") {
-    self.skipWaiting();
-  }
-
-  if (event.data?.type === "SYNC_NOW") {
-    event.waitUntil(syncData());
-  }
-});
-
-console.log("[SW] Service Worker loaded");

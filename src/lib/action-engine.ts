@@ -228,3 +228,59 @@ export function getReceipts(limit = 20): ActionReceipt[] {
 export function generatePlanId(): string {
     return `plan_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
+
+// ==============================================================================
+// ENREGISTREMENT DES OUTILS (TOOL REGISTRY)
+// ==============================================================================
+
+actionRegistry.register({
+    name: "google_calendar_schedule",
+    description: "Planifie un événement ou un rappel dans le Google Calendar de l'utilisateur.",
+    intent: "plan_week",
+    paramSchema: z.object({
+        title: z.string(),
+        startTimeISO: z.string(),
+        endTimeISO: z.string(),
+        description: z.string().optional()
+    }),
+    requiresConfirmation: true, // Action destructrice/modificatrice = Confirmation Requise
+    timeout: 8000,
+    retries: 1,
+    handler: async (params) => {
+        console.log("📅 [Action Engine] Appel API Google Calendar simulé...", params);
+        // TODO: Remplacer par le vrai appel API Google (googleapis)
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return {
+            success: true,
+            data: { eventId: `gcal_${Date.now()}`, status: "confirmed" },
+            undoInstructions: "DELETE /api/calendar/events/:id"
+        };
+    }
+});
+
+actionRegistry.register({
+    name: "skyscanner_flight_search",
+    description: "Recherche des vols pas chers pour les digital nomads.",
+    intent: "plan_trip",
+    paramSchema: z.object({
+        origin: z.string(),
+        destination: z.string(),
+        date: z.string(), // YYYY-MM-DD
+    }),
+    requiresConfirmation: false, // Simple recherche = Pas besoin de confirmation
+    timeout: 10000,
+    retries: 2,
+    handler: async (params) => {
+        console.log("✈️ [Action Engine] Recherche Skyscanner simulée...", params);
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        return {
+            success: true,
+            data: {
+                flights: [
+                    { airline: "TAP Portugal", price: 85, duration: "2h30", direct: true },
+                    { airline: "Air France", price: 120, duration: "2h45", direct: true }
+                ]
+            }
+        };
+    }
+});

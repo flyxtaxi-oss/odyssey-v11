@@ -9,6 +9,7 @@ const DB_VERSION = 1;
 export type StoreName =
   | "posts"
   | "simulations"
+  | "agent"
   | "skills"
   | "checkins"
   | "conversations"

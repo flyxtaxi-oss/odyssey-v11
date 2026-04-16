@@ -4,6 +4,7 @@ import Sidebar from "@/components/Sidebar";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ToastProvider } from "@/components/Toast";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorker";
+import CommandCenter from "@/components/CommandCenter";
 
 export const metadata: Metadata = {
   title: "Odyssey.ai — Life Operating System",
@@ -85,6 +86,9 @@ export default function RootLayout({
                 </div>
               </main>
             </div>
+            
+            {/* JARVIS Global Command Center (Cmd+J) */}
+            <CommandCenter />
           </ToastProvider>
         </AuthProvider>
         </body>

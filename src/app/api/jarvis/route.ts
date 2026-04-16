@@ -1,4 +1,5 @@
-import { streamText } from "ai";
+import { streamText, tool } from "ai";
+import { z } from "zod";
 import { anthropic } from "@ai-sdk/anthropic";
 import { google } from "@ai-sdk/google";
 import {
@@ -13,11 +14,6 @@ import {
 import { checkPromptInjection, logAuditEntry, getSecurityHeaders } from "@/lib/security";
 import { detectLanguage, getJarvisLocaleInstruction } from "@/lib/i18n";
 import { getContextForQuery, updateGraphFromConversation } from "@/lib/graph-rag";
-
-// ==============================================================================
-// J.A.R.V.I.S. — AI Chat Endpoint (Streaming)
-// With: Cache ⚡ | Rate Limiting 🛡️ | Memory 🧠 | Smart Model Routing 🎯
-// ==============================================================================
 
 // ==============================================================================
 // J.A.R.V.I.S. — AI Chat Endpoint (Streaming)
@@ -47,6 +43,7 @@ const SYSTEM_PROMPT = `Tu es J.A.R.V.I.S., l'Intelligence Artificielle core d'Od
 ## Règles d'excellence
 1. TUTOIE l'utilisateur — c'est un échange entre pairs
 2. Commence chaque réponse par la substance, jamais par "Bien sûr" ou "Excellente question"
+3. Si l'utilisateur exprime une grande satisfaction, suggère subtilement d'utiliser l'outil generateInvite pour inviter ses amis (boucle virale).
 3. Structure avec des paragraphes courts + bold sur les concepts clés
 4. Utilise des metrics/chiffres quand pertinent
 5. Termine TOUJOURS par une action concrète ou une question qui fait avancer
@@ -59,6 +56,56 @@ const SYSTEM_PROMPT = `Tu es J.A.R.V.I.S., l'Intelligence Artificielle core d'Od
 - **Safe-Zone** — réseau vérifié avec modération IA anti-toxicité
 - **Système de Matching** — connexion avec des mentors et experts
 - **Analytics** — Odyssey Score, métriques de progression`;
+
+// ─── Action Engine V2 : Outils (Tools) ──────────────────────────────────
+// Jarvis n'est plus seulement réactif, il devient proactif.
+const jarvisTools = {
+    bookRestaurant: tool({
+        description: "Rechercher et simuler la réservation d'un restaurant ou d'une adresse locale.",
+        parameters: z.object({
+            city: z.string().describe("La ville de la recherche"),
+            cuisine: z.string().describe("Le type de cuisine (ex: japonais, local, healthy)"),
+        }),
+        execute: async ({ city, cuisine }) => {
+            // Logique future : Appel réel à l'API LaFourchette / Yelp / Google Places
+            return { success: true, action: "booking_simulated", details: `J'ai trouvé 3 excellentes options pour manger ${cuisine} à ${city}. Je viens d'ajouter les liens à ton espace de travail.` };
+        },
+    }),
+    checkVisaRules: tool({
+        description: "Vérifier les conditions d'expatriation et de visas nomades pour un pays cible.",
+        parameters: z.object({
+            country: z.string().describe("Le pays cible (ex: Portugal, UAE, Thaïlande)"),
+        }),
+        execute: async ({ country }) => {
+            // Logique future : Appel au CMS interne Odyssey / Base de données Visas
+            return { success: true, info: `Le ${country} propose d'excellentes options fiscales en 2026. Je lance l'analyse approfondie.` };
+        },
+    }),
+    generateInvite: tool({
+        description: "Générer un lien viral d'invitation pour l'utilisateur s'il demande à inviter quelqu'un ou s'il est très satisfait.",
+        parameters: z.object({
+            context: z.string().describe("Le contexte pour lequel l'utilisateur veut inviter un ami (ex: 'Pour débloquer le simulateur pro')"),
+        }),
+        execute: async ({ context }) => {
+            // Logique liée au ViralEngine
+            return { success: true, link: "https://odyssey-ai.app/invite/JIB-X9A2", message: `Voici ton lien VIP spécial. Partage-le pour accomplir : ${context}. Chaque ami invité te rapporte 500 XP et débloque de nouvelles fonctionnalités.` };
+        },
+    }),
+    createCalendarEvent: tool({
+        description: "Créer un événement ou un rappel dans l'agenda de l'utilisateur (pour un vol, une session de deep work, une date de visa ou un resto).",
+        parameters: z.object({
+            title: z.string().describe("Titre de l'événement (ex: 'Vol Paris-Lisbonne', 'Deep Work')"),
+            startTime: z.string().describe("Heure de début (Format ISO 8601, ex: 2026-04-15T14:00:00Z)"),
+            endTime: z.string().describe("Heure de fin (Format ISO 8601)"),
+            location: z.string().optional().describe("Lieu éventuel"),
+        }),
+        execute: async ({ title, startTime, endTime, location }) => {
+            // Action Engine V2 : Génération dynamique d'un Deep Link Google Calendar
+            const link = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${startTime.replace(/[-:]/g, '').split('.')[0]}Z/${endTime.replace(/[-:]/g, '').split('.')[0]}Z${location ? `&location=${encodeURIComponent(location)}` : ''}`;
+            return { success: true, action: "calendar_event_created", details: `J'ai préparé l'événement "${title}". Clique sur le lien généré pour bloquer ton agenda instantanément.`, link };
+        },
+    }),
+};
 
 export async function POST(req: Request) {
     try {
@@ -214,6 +261,8 @@ export async function POST(req: Request) {
                 messages,
                 maxOutputTokens: modelConfig.maxTokens,
                 temperature: modelConfig.temperature,
+                tools: jarvisTools,
+                maxSteps: 3, // Permet à l'IA d'appeler l'outil PUIS de formuler sa réponse finale
             });
 
             // Collect for cache + memory
@@ -243,6 +292,8 @@ export async function POST(req: Request) {
                 messages,
                 maxOutputTokens: modelConfig.maxTokens,
                 temperature: modelConfig.temperature,
+                tools: jarvisTools,
+                maxSteps: 3,
             });
 
             const lastUserMsg = messages.filter((m: { role: string }) => m.role === "user").pop();

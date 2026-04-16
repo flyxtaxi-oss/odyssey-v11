@@ -17,6 +17,8 @@ import {
 import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import VisaTracker from "@/components/VisaTracker";
+import { NotificationEngine } from "@/lib/notification-engine";
 
 /* ─── Animated Number Counter ─── */
 function AnimatedCounter({ value, suffix = "" }: { value: number; suffix?: string }) {
@@ -168,6 +170,11 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
+
+  // Demande la permission pour les alertes J.A.R.V.I.S (Push Notifications)
+  useEffect(() => {
+    NotificationEngine.requestPushPermission();
+  }, []);
 
   const stats = [
     { label: "Odyssey Score", value: data.odyssey_score, unit: "PTS", icon: Zap, delta: data.odyssey_trend, period: "cette semaine" },
@@ -348,41 +355,46 @@ export default function DashboardPage() {
 
         {/* Timeline */}
         <motion.div variants={fadeUp} className="lg:col-span-2">
-          <div className="glass-panel p-8 h-full">
-            <div className="flex items-center justify-between mb-8 pb-6 border-b border-[var(--border-0)]">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(124, 58, 237, 0.15)' }}>
-                  <Activity className="w-5 h-5 text-[var(--accent-magenta)]" />
-                </div>
-                <h2 className="text-xl font-bold text-[var(--text-0)]">Activité</h2>
-              </div>
-              <button className="text-xs font-bold tracking-wider px-4 py-2 rounded-xl bg-[var(--bg-3)] text-[var(--text-1)] hover:text-[var(--text-0)] hover:bg-[var(--bg-4)] transition-colors border border-[var(--border-0)]">
-                TOUT VOIR
-              </button>
-            </div>
-
-            <div className="space-y-5">
-              {timeline.map((t, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, x: -15 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.5 + i * 0.12, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                  className="group"
-                >
-                  <div className="flex items-start gap-4 cursor-pointer p-3 rounded-xl hover:bg-[var(--bg-3)] transition-colors -mx-3">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-[var(--bg-3)] border border-[var(--border-0)] group-hover:border-[var(--border-1)] mt-0.5">
-                      <t.icon className="w-4 h-4 text-[var(--text-2)] group-hover:text-[var(--accent-indigo)] transition-colors" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-[var(--text-1)] group-hover:text-[var(--text-0)] transition-colors leading-snug">
-                        {t.text}
-                      </p>
-                      <p className="text-xs text-[var(--text-3)] mt-1.5">{t.time}</p>
-                    </div>
+          <div className="flex flex-col gap-6 h-full">
+            {/* Injection du composant stratégique Visa Tracker */}
+            <VisaTracker countryCode="TH" entryDate="2024-03-01" />
+            
+            <div className="glass-panel p-8 flex-1">
+              <div className="flex items-center justify-between mb-8 pb-6 border-b border-[var(--border-0)]">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(124, 58, 237, 0.15)' }}>
+                    <Activity className="w-5 h-5 text-[var(--accent-magenta)]" />
                   </div>
-                </motion.div>
-              ))}
+                  <h2 className="text-xl font-bold text-[var(--text-0)]">Activité</h2>
+                </div>
+                <button className="text-xs font-bold tracking-wider px-4 py-2 rounded-xl bg-[var(--bg-3)] text-[var(--text-1)] hover:text-[var(--text-0)] hover:bg-[var(--bg-4)] transition-colors border border-[var(--border-0)]">
+                  TOUT VOIR
+                </button>
+              </div>
+
+              <div className="space-y-5">
+                {timeline.map((t, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, x: -15 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.5 + i * 0.12, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                    className="group"
+                  >
+                    <div className="flex items-start gap-4 cursor-pointer p-3 rounded-xl hover:bg-[var(--bg-3)] transition-colors -mx-3">
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-[var(--bg-3)] border border-[var(--border-0)] group-hover:border-[var(--border-1)] mt-0.5">
+                        <t.icon className="w-4 h-4 text-[var(--text-2)] group-hover:text-[var(--accent-indigo)] transition-colors" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-[var(--text-1)] group-hover:text-[var(--text-0)] transition-colors leading-snug">
+                          {t.text}
+                        </p>
+                        <p className="text-xs text-[var(--text-3)] mt-1.5">{t.time}</p>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
             </div>
           </div>
         </motion.div>
