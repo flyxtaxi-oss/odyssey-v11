@@ -28,8 +28,8 @@ export default function VisaPage() {
         </div>
       </div>
 
-      {/* Visa Tracker Component */}
-      <VisaTracker />
+      {/* Visa Tracker Component — TODO: read from user's Firestore profile */}
+      <VisaTracker countryCode="PT" entryDate={new Date().toISOString().split("T")[0]} />
     </motion.div>
   );
 }

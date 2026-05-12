@@ -1,19 +1,25 @@
 // ==============================================================================
-// VERTEX AI / GEMINI — Advanced AI Features for Odyssey.v11
-// Optimized routing: Gemini for speed, Claude for depth
+// AI Router — StepFun-first, Gemini fallback for Odyssey.v11
+// (Anthropic removed — cost optimization, May 2026)
 // ==============================================================================
 
 import { google } from "@ai-sdk/google";
-import { anthropic } from "@ai-sdk/anthropic";
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { generateText, streamText } from "ai";
+
+const stepfun = createOpenAICompatible({
+  name: "stepfun",
+  baseURL: "https://api.stepfun.com/v1",
+  apiKey: process.env.STEPFUN_API_KEY ?? "",
+});
 
 // ─── Model Configuration ─────────────────────────────────────────────────────
 
-export type AIModel = "gemini-fast" | "gemini-pro" | "claude-haiku" | "claude-sonnet";
+export type AIModel = "gemini-fast" | "gemini-pro" | "step-flash" | "step-deep";
 
 interface ModelConfig {
   id: AIModel;
-  provider: "google" | "anthropic";
+  provider: "google" | "stepfun";
   model: string;
   maxTokens: number;
   temperature: number;
@@ -40,23 +46,23 @@ const MODELS: Record<AIModel, ModelConfig> = {
     useCase: "Complex reasoning, code generation, analysis",
     costPer1kTokens: 0.0035,
   },
-  "claude-haiku": {
-    id: "claude-haiku",
-    provider: "anthropic",
-    model: "claude-3-haiku-20240307",
+  "step-flash": {
+    id: "step-flash",
+    provider: "stepfun",
+    model: "step-3.5-flash",
+    maxTokens: 2048,
+    temperature: 0.7,
+    useCase: "Ultra-cheap fast responses, high volume chat",
+    costPer1kTokens: 0.0001, // ~$0.10/M input
+  },
+  "step-deep": {
+    id: "step-deep",
+    provider: "stepfun",
+    model: "step-3",
     maxTokens: 4096,
     temperature: 0.7,
-    useCase: "Fast Claude responses, cost-effective",
-    costPer1kTokens: 0.00025,
-  },
-  "claude-sonnet": {
-    id: "claude-sonnet",
-    provider: "anthropic",
-    model: "claude-3-5-sonnet-20241022",
-    maxTokens: 8192,
-    temperature: 0.7,
-    useCase: "Deep analysis, creative writing, complex tasks",
-    costPer1kTokens: 0.003,
+    useCase: "Deep reasoning, multimodal MoE",
+    costPer1kTokens: 0.0006, // ~$0.57/M input
   },
 };
 
@@ -75,7 +81,6 @@ export function routeModel(
 ): RoutingDecision {
   const lowerQuery = query.toLowerCase();
 
-  // Check for complex patterns
   const isComplex =
     complexity === "high" ||
     lowerQuery.includes("analyse") ||
@@ -87,40 +92,31 @@ export function routeModel(
   const isSimple =
     complexity === "low" ||
     lowerQuery.length < 100 ||
-    lowerQuery.match(/^(bonjour|salut|merci|ok|d'accord)/);
+    !!lowerQuery.match(/^(bonjour|salut|merci|ok|d'accord)/);
 
-  // Route based on preference
-  if (preference === "speed" || isSimple) {
+  // Speed / cost / simple → StepFun Flash (cheapest, fastest)
+  if (preference === "speed" || preference === "cost" || isSimple) {
     return {
-      model: "gemini-fast",
-      reason: "Fast response for simple query",
+      model: "step-flash",
+      reason: "StepFun Flash — fast & cheap for simple queries",
       estimatedCost: 0.0001,
     };
   }
 
-  if (preference === "cost" && !isComplex) {
-    return {
-      model: "claude-haiku",
-      reason: "Cost-effective option",
-      estimatedCost: 0.00025,
-    };
-  }
-
+  // Complex / quality → StepFun Deep (Step-3 MoE) preferred, Gemini Pro fallback
   if (isComplex || preference === "quality") {
-    // Alternate between Claude and Gemini for quality
-    const useClaude = Math.random() > 0.3; // 70% Claude for quality
     return {
-      model: useClaude ? "claude-sonnet" : "gemini-pro",
-      reason: "High complexity task - using best model",
-      estimatedCost: useClaude ? 0.003 : 0.0035,
+      model: "step-deep",
+      reason: "StepFun Step-3 — MoE for complex reasoning",
+      estimatedCost: 0.0006,
     };
   }
 
-  // Default
+  // Default balanced
   return {
-    model: "gemini-pro",
-    reason: "Balanced performance",
-    estimatedCost: 0.0035,
+    model: "step-flash",
+    reason: "Balanced StepFun default",
+    estimatedCost: 0.0001,
   };
 }
 
@@ -147,13 +143,13 @@ export async function generateAIResponse(options: AIGenerationOptions & { stream
 export async function generateAIResponse(
   options: AIGenerationOptions
 ): Promise<string | ReadableStream> {
-  const { messages, model = "gemini-pro", system, stream = false } = options;
+  const { messages, model = "step-flash", system, stream = false } = options;
   const config = MODELS[model];
 
   const modelInstance =
     config.provider === "google"
       ? google(config.model)
-      : anthropic(config.model);
+      : stepfun(config.model);
 
   if (stream) {
     const result = streamText({
@@ -164,8 +160,7 @@ export async function generateAIResponse(
       })),
       system,
     });
-    
-    // Convert to ReadableStream
+
     const encoder = new TextEncoder();
     return new ReadableStream({
       async start(controller) {
@@ -189,7 +184,7 @@ export async function generateAIResponse(
   return result.text;
 }
 
-// ─── Multi-Modal Features (Gemini Vision) ────────────────────────────────────
+// ─── Multi-Modal Features (Gemini Vision — StepFun vision not yet integrated) ─
 
 export interface ImageAnalysisRequest {
   imageBase64: string;
@@ -211,7 +206,7 @@ export async function analyzeImage(request: ImageAnalysisRequest): Promise<strin
             type: "image",
             image: `data:${mimeType};base64,${imageBase64}`,
           },
-        ] as unknown as string, // Type assertion for SDK compatibility
+        ] as unknown as string,
       },
     ],
   });
@@ -249,8 +244,6 @@ export function trackUsage(userId: string, model: AIModel, tokens: number): void
 export function getUsage(userId: string): UsageTracker | null {
   return usageStore.get(userId) || null;
 }
-
-// ─── Exports ─────────────────────────────────────────────────────────────────
 
 export { MODELS };
 export type { ModelConfig, ChatMessage };

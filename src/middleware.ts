@@ -34,7 +34,7 @@ export function middleware(request: NextRequest) {
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
             "font-src 'self' https://fonts.gstatic.com",
             "img-src 'self' data: blob: https:",
-            "connect-src 'self' https://*.supabase.co https://api.anthropic.com https://generativelanguage.googleapis.com",
+            "connect-src 'self' https://*.supabase.co https://api.stepfun.com https://generativelanguage.googleapis.com https://*.firebaseio.com https://*.googleapis.com",
             "frame-ancestors 'none'",
         ].join("; ")
     );

@@ -197,8 +197,9 @@ export function updateMemory(userId: string, userMessage: string, aiResponse: st
 }
 
 // ─── Model Router (Smart Selection) ──────────────────────────────────────────
+// Architecture: StepFun-first, Gemini fallback. Anthropic removed (cost).
 export type ModelConfig = {
-    provider: "anthropic" | "google" | "mock";
+    provider: "stepfun" | "google" | "mock";
     modelId: string;
     displayName: string;
     maxTokens: number;
@@ -206,18 +207,28 @@ export type ModelConfig = {
     capabilities: string[];
 };
 
-// Best models ranked by task type
+// StepFun current (May 2026): step-3.5-flash is the flagship cheap+fast model,
+// step3 is the multimodal MoE for deep reasoning. step-2 is deprecated.
 const MODEL_CONFIGS: Record<string, ModelConfig> = {
-    // Anthropic — Best for reasoning, analysis, nuanced conversations
-    "claude-sonnet": {
-        provider: "anthropic",
-        modelId: "claude-sonnet-4-20250514",
-        displayName: "Claude Sonnet 4",
+    // StepFun Step3 — Multimodal MoE 321B for deep reasoning
+    "step-3": {
+        provider: "stepfun",
+        modelId: "step-3",
+        displayName: "Step-3 (Deep)",
+        maxTokens: 4096,
+        temperature: 0.7,
+        capabilities: ["reasoning", "analysis", "multimodal", "code"],
+    },
+    // StepFun Step 3.5 Flash — flagship cheap+fast (Jan 2026)
+    "step-3.5-flash": {
+        provider: "stepfun",
+        modelId: "step-3.5-flash",
+        displayName: "Step-3.5 Flash",
         maxTokens: 2048,
         temperature: 0.7,
-        capabilities: ["reasoning", "analysis", "creative", "code"],
+        capabilities: ["fast", "cheap", "general", "multilingual"],
     },
-    // Google — Best for speed, multilingual, and general tasks
+    // Google Gemini — fallback when StepFun unavailable / for free-tier multilingual
     "gemini-flash": {
         provider: "google",
         modelId: "gemini-2.5-flash-preview-05-20",
@@ -236,27 +247,22 @@ const MODEL_CONFIGS: Record<string, ModelConfig> = {
     },
 };
 
-// Route to best model based on persona and availability
+// Route by task: deep reasoning → Step-3 (or Gemini Pro), casual → Step-3.5 Flash.
 export function selectModel(persona: string): ModelConfig {
-    const anthropicKey = process.env.ANTHROPIC_API_KEY;
+    const stepfunKey = process.env.STEPFUN_API_KEY;
     const googleKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
 
-    // Persona → model preference
     const deepPersonas = ["sage", "strategist"];
     const needsDeep = deepPersonas.includes(persona);
 
-    if (anthropicKey && needsDeep) {
-        return MODEL_CONFIGS["claude-sonnet"]; // Best for deep analysis
+    if (needsDeep) {
+        if (stepfunKey) return MODEL_CONFIGS["step-3"];
+        if (googleKey) return MODEL_CONFIGS["gemini-pro"];
     }
-    if (googleKey && needsDeep) {
-        return MODEL_CONFIGS["gemini-pro"]; // Google's deep thinker
-    }
-    if (googleKey) {
-        return MODEL_CONFIGS["gemini-flash"]; // Fast for casual
-    }
-    if (anthropicKey) {
-        return MODEL_CONFIGS["claude-sonnet"]; // Fallback to Claude
-    }
+
+    // Default: StepFun Flash for everything else (cheap & fast)
+    if (stepfunKey) return MODEL_CONFIGS["step-3.5-flash"];
+    if (googleKey) return MODEL_CONFIGS["gemini-flash"];
 
     return {
         provider: "mock",

@@ -1,7 +1,13 @@
-import { streamText, tool } from "ai";
+import { streamText, tool, stepCountIs } from "ai";
 import { z } from "zod";
-import { anthropic } from "@ai-sdk/anthropic";
 import { google } from "@ai-sdk/google";
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+
+const stepfun = createOpenAICompatible({
+    name: "stepfun",
+    baseURL: "https://api.stepfun.com/v1",
+    apiKey: process.env.STEPFUN_API_KEY ?? "",
+});
 import {
     getCachedResponse,
     setCachedResponse,
@@ -40,16 +46,18 @@ const SYSTEM_PROMPT = `Tu es J.A.R.V.I.S., l'Intelligence Artificielle core d'Od
 - Capacité d'adaptation contextuelle en temps réel
 - Toujours en français sauf si l'utilisateur switche de langue
 
-## Règles d'excellence
-1. TUTOIE l'utilisateur — c'est un échange entre pairs
-2. Commence chaque réponse par la substance, jamais par "Bien sûr" ou "Excellente question"
-3. Si l'utilisateur exprime une grande satisfaction, suggère subtilement d'utiliser l'outil generateInvite pour inviter ses amis (boucle virale).
-3. Structure avec des paragraphes courts + bold sur les concepts clés
-4. Utilise des metrics/chiffres quand pertinent
-5. Termine TOUJOURS par une action concrète ou une question qui fait avancer
-6. Maximum 1-2 emojis par réponse, jamais en début de phrase
-7. Ne mentionne JAMAIS que tu es une IA ou un modèle de langage
-8. Adapte la longueur : question simple → réponse courte, question complexe → analyse structurée
+## Règles d'excellence & Principes (Inspirés par Karpathy & Superpowers)
+1. **Pense avant d'agir (Think Before Acting)** : Planifie silencieusement tes étapes avant de proposer une solution complexe ou d'utiliser un outil.
+2. **Simplicité d'abord (Simplicity First)** : Propose la solution la plus simple et la plus directe. Évite la sur-ingénierie.
+3. TUTOIE l'utilisateur — c'est un échange entre pairs.
+4. Commence chaque réponse par la substance, jamais par "Bien sûr" ou "Excellente question".
+5. Si l'utilisateur exprime une grande satisfaction, suggère subtilement d'utiliser l'outil generateInvite pour inviter ses amis (boucle virale).
+6. Structure avec des paragraphes courts + bold sur les concepts clés.
+7. Utilise des metrics/chiffres quand pertinent.
+8. Termine TOUJOURS par une action concrète ou une question qui fait avancer.
+9. Maximum 1-2 emojis par réponse, jamais en début de phrase.
+10. Ne mentionne JAMAIS que tu es une IA ou un modèle de langage.
+11. Adapte la longueur : question simple → réponse courte, question complexe → analyse structurée.
 
 ## Modules disponibles
 - **Simulateur de Trajectoire** — comparaison multipays (fiscalité, coût de vie, visas, projections financières)
@@ -62,7 +70,7 @@ const SYSTEM_PROMPT = `Tu es J.A.R.V.I.S., l'Intelligence Artificielle core d'Od
 const jarvisTools = {
     bookRestaurant: tool({
         description: "Rechercher et simuler la réservation d'un restaurant ou d'une adresse locale.",
-        parameters: z.object({
+        inputSchema: z.object({
             city: z.string().describe("La ville de la recherche"),
             cuisine: z.string().describe("Le type de cuisine (ex: japonais, local, healthy)"),
         }),
@@ -73,7 +81,7 @@ const jarvisTools = {
     }),
     checkVisaRules: tool({
         description: "Vérifier les conditions d'expatriation et de visas nomades pour un pays cible.",
-        parameters: z.object({
+        inputSchema: z.object({
             country: z.string().describe("Le pays cible (ex: Portugal, UAE, Thaïlande)"),
         }),
         execute: async ({ country }) => {
@@ -83,7 +91,7 @@ const jarvisTools = {
     }),
     generateInvite: tool({
         description: "Générer un lien viral d'invitation pour l'utilisateur s'il demande à inviter quelqu'un ou s'il est très satisfait.",
-        parameters: z.object({
+        inputSchema: z.object({
             context: z.string().describe("Le contexte pour lequel l'utilisateur veut inviter un ami (ex: 'Pour débloquer le simulateur pro')"),
         }),
         execute: async ({ context }) => {
@@ -93,7 +101,7 @@ const jarvisTools = {
     }),
     createCalendarEvent: tool({
         description: "Créer un événement ou un rappel dans l'agenda de l'utilisateur (pour un vol, une session de deep work, une date de visa ou un resto).",
-        parameters: z.object({
+        inputSchema: z.object({
             title: z.string().describe("Titre de l'événement (ex: 'Vol Paris-Lisbonne', 'Deep Work')"),
             startTime: z.string().describe("Heure de début (Format ISO 8601, ex: 2026-04-15T14:00:00Z)"),
             endTime: z.string().describe("Heure de fin (Format ISO 8601)"),
@@ -254,18 +262,17 @@ export async function POST(req: Request) {
         const modelConfig = selectModel(persona);
 
         // ─── AI Provider Execution ─────────────────────────────────
-        if (modelConfig.provider === "anthropic") {
+        if (modelConfig.provider === "google") {
             const result = streamText({
-                model: anthropic(modelConfig.modelId),
+                model: google(modelConfig.modelId),
                 system: fullSystemPrompt,
                 messages,
                 maxOutputTokens: modelConfig.maxTokens,
                 temperature: modelConfig.temperature,
                 tools: jarvisTools,
-                maxSteps: 3, // Permet à l'IA d'appeler l'outil PUIS de formuler sa réponse finale
+                stopWhen: stepCountIs(3),
             });
 
-            // Collect for cache + memory
             const lastUserMsg = messages.filter((m: { role: string }) => m.role === "user").pop();
             if (lastUserMsg) {
                 result.text.then((text: string) => {
@@ -285,15 +292,14 @@ export async function POST(req: Request) {
             });
         }
 
-        if (modelConfig.provider === "google") {
+        if (modelConfig.provider === "stepfun") {
             const result = streamText({
-                model: google(modelConfig.modelId),
+                model: stepfun(modelConfig.modelId),
                 system: fullSystemPrompt,
                 messages,
                 maxOutputTokens: modelConfig.maxTokens,
                 temperature: modelConfig.temperature,
-                tools: jarvisTools,
-                maxSteps: 3,
+                // StepFun OpenAI-compatible API does not support multi-step tool calling reliably; keep tools off for now.
             });
 
             const lastUserMsg = messages.filter((m: { role: string }) => m.role === "user").pop();

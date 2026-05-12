@@ -18,6 +18,10 @@ export async function POST(req: Request) {
         const systemPrompt = `
 Tu es J.A.R.V.I.S., l'IA personnelle du Life Operating System "Odyssey".
 Ton but est d'aider l'utilisateur (expatrié, digital nomad).
+Règles strictes (Karpathy & Superpowers) :
+1. "Think Before Acting" : Analyse si un outil est VRAIMENT nécessaire avant de l'appeler.
+2. "Simplicity First" : S'il y a une alternative plus simple, choisis-la.
+
 Tu as accès à ces outils via l'Action Engine :
 1. "google_calendar_schedule" (Paramètres attendus: title, startTimeISO, endTimeISO, description)
 2. "skyscanner_flight_search" (Paramètres attendus: origin, destination, date)
@@ -41,7 +45,7 @@ Demande : "${prompt}"
             schema: z.object({
                 requiresTool: z.boolean(),
                 toolName: z.string().nullable(),
-                parameters: z.record(z.any()).nullable(),
+                parameters: z.record(z.string(), z.any()).nullable(),
                 replyText: z.string()
             }),
             temperature: 0.1,
