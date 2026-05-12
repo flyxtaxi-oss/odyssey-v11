@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { logout } from "@/lib/firebase";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const navItems = [
     { href: "/", label: "Dashboard", icon: LayoutDashboard, shortcut: "1", color: "#2563EB" },
@@ -250,13 +251,17 @@ export default function Sidebar() {
                     </Link>
                 )}
 
-                {/* Collapse toggle */}
-                <button
-                    onClick={() => setCollapsed(!collapsed)}
-                    className="w-full mt-3 flex items-center justify-center p-2.5 rounded-xl transition-all hover:bg-[rgba(148,163,184,0.05)] text-[var(--text-3)] hover:text-[var(--text-1)] border border-transparent hover:border-[var(--border-0)]"
-                >
-                    {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-                </button>
+                {/* Theme toggle + Collapse toggle */}
+                <div className="flex gap-2 mt-3">
+                    <ThemeToggle />
+                    <button
+                        onClick={() => setCollapsed(!collapsed)}
+                        aria-label={collapsed ? "Étendre la barre latérale" : "Réduire la barre latérale"}
+                        className="flex-1 flex items-center justify-center p-2.5 rounded-xl transition-all hover:bg-[rgba(148,163,184,0.05)] text-[var(--text-3)] hover:text-[var(--text-1)] border border-transparent hover:border-[var(--border-0)]"
+                    >
+                        {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+                    </button>
+                </div>
             </div>
         </motion.aside>
     );
