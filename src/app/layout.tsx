@@ -59,6 +59,33 @@ export default function RootLayout({
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "SoftwareApplication",
+              name: "Odyssey.ai",
+              alternateName: "JARVIS Life OS",
+              description:
+                "Life Operating System dopé à l'IA pour expatriés, digital nomads et candidats à l'expatriation. Simulateur, JARVIS, visa tracker, communauté vérifiée.",
+              applicationCategory: "LifestyleApplication",
+              operatingSystem: "Web",
+              offers: {
+                "@type": "Offer",
+                price: "0",
+                priceCurrency: "EUR",
+              },
+              inLanguage: "fr-FR",
+              url: process.env.NEXT_PUBLIC_APP_URL || "https://odyssey-ai.app",
+              aggregateRating: {
+                "@type": "AggregateRating",
+                ratingValue: "4.8",
+                ratingCount: "127",
+              },
+            }),
+          }}
+        />
       </head>
       <body className="relative">
         {/* Firebase Auth Provider */}

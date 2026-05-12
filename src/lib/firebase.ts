@@ -26,14 +26,13 @@ import {
   getDoc,
   getDocs,
   query,
-  where,
-  orderBy,
-  limit,
   Firestore,
   DocumentData,
   QueryConstraint,
 } from "firebase/firestore";
 
+// NEXT_PUBLIC_* keys are bundled in client code — fallback values are safe
+// (they only become a risk if Firebase Auth authorized domains are mis-configured)
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyDXch5wQxmCzJJ8MttAly0fD_Ej09iUu8o",
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "jarvis-53b7c.firebaseapp.com",

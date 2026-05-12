@@ -2,7 +2,7 @@
 // PREDICTION FOLLOW-UP — Track predicted vs actual outcomes
 // ==============================================================================
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 
 export interface PredictionFollowUp {
   id: string;
@@ -83,17 +83,15 @@ const MOCK_FOLLOW_UPS: PredictionFollowUp[] = [
 
 export function usePredictionFollowUp(userId?: string) {
   const [followUps, setFollowUps] = useState<PredictionFollowUp[]>(MOCK_FOLLOW_UPS);
-  const [pendingCheckIns, setPendingCheckIns] = useState<PredictionFollowUp[]>([]);
 
-  // Check for pending check-ins
-  useEffect(() => {
+  // Derive pending check-ins from followUps (no state, no effect → no cascading renders)
+  const pendingCheckIns = useMemo(() => {
     const now = new Date();
-    const pending = followUps.filter(fu => {
+    return followUps.filter(fu => {
       if (fu.status === 'completed') return false;
       const nextCheckIn = fu.check_in_dates.find(date => new Date(date) <= now);
       return !!nextCheckIn;
     });
-    setPendingCheckIns(pending);
   }, [followUps]);
 
   const createFollowUp = useCallback(async (
