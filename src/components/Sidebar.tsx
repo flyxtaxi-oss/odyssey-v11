@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Brain, Globe, Users, LayoutDashboard, Settings, ChevronLeft, ChevronRight, Search, LogOut, Loader2, MessageSquare, Target, Shield, Sparkles } from "lucide-react";
+import { Brain, Globe, Users, LayoutDashboard, Settings, ChevronLeft, ChevronRight, Search, LogOut, Loader2, MessageSquare, Target, Shield, Sparkles, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,6 +28,22 @@ export default function Sidebar() {
     const { user, loading } = useAuth();
     const [collapsed, setCollapsed] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
+    const [mobileOpen, setMobileOpen] = useState(false);
+
+    // Close the mobile drawer whenever the route changes
+    useEffect(() => {
+        setMobileOpen(false);
+    }, [pathname]);
+
+    // Lock body scroll while the mobile drawer is open
+    useEffect(() => {
+        if (mobileOpen) {
+            document.body.style.overflow = "hidden";
+        } else {
+            document.body.style.overflow = "";
+        }
+        return () => { document.body.style.overflow = ""; };
+    }, [mobileOpen]);
 
     // Handle logout
     const handleLogout = async () => {
@@ -61,11 +77,51 @@ export default function Sidebar() {
     };
 
     return (
+        <>
+        {/* ─── Mobile top bar (hidden on desktop) ─── */}
+        <header className="lg:hidden fixed top-0 left-0 right-0 z-40 h-16 flex items-center justify-between px-4 sidebar-glass border-b border-[var(--border-0)]">
+            <Link href="/" className="flex items-center gap-2.5">
+                <span
+                    className="w-8 h-8 rounded-full shrink-0"
+                    style={{ background: "var(--gradient-blue-purple)", boxShadow: "0 0 16px rgba(37,99,235,0.4)" }}
+                />
+                <span className="text-[15px] font-extrabold tracking-tight text-[var(--text-0)] flex items-center">
+                    ODYSSEY<span className="text-gradient-shimmer">.AI</span>
+                </span>
+            </Link>
+            <button
+                onClick={() => setMobileOpen(true)}
+                aria-label="Ouvrir le menu"
+                aria-expanded={mobileOpen}
+                className="p-2.5 rounded-xl text-[var(--text-1)] hover:bg-[rgba(148,163,184,0.1)] transition-colors"
+            >
+                <Menu className="w-5 h-5" />
+            </button>
+        </header>
+
+        {/* ─── Mobile backdrop ─── */}
+        <AnimatePresence>
+            {mobileOpen && (
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => setMobileOpen(false)}
+                    className="lg:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+                    aria-hidden="true"
+                />
+            )}
+        </AnimatePresence>
+
         <motion.aside
             initial={false}
             animate={{ width: collapsed ? 72 : 280 }}
             transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            className="fixed left-4 top-4 bottom-4 z-50 flex flex-col sidebar-glass rounded-3xl overflow-hidden"
+            className={cn(
+                "fixed left-4 top-4 bottom-4 z-50 flex flex-col sidebar-glass rounded-3xl overflow-hidden",
+                "transition-transform duration-300 ease-out lg:translate-x-0",
+                mobileOpen ? "max-lg:translate-x-0" : "max-lg:-translate-x-[320px]"
+            )}
             style={{
                 height: "calc(100vh - 32px)",
             }}
@@ -103,6 +159,14 @@ export default function Sidebar() {
                         </motion.div>
                     )}
                 </AnimatePresence>
+                {/* Mobile close button */}
+                <button
+                    onClick={() => setMobileOpen(false)}
+                    aria-label="Fermer le menu"
+                    className="lg:hidden ml-auto p-2 rounded-xl text-[var(--text-3)] hover:text-[var(--text-1)] hover:bg-[rgba(148,163,184,0.1)] transition-colors"
+                >
+                    <X className="w-5 h-5" />
+                </button>
             </div>
 
             {/* Search */}
@@ -257,12 +321,13 @@ export default function Sidebar() {
                     <button
                         onClick={() => setCollapsed(!collapsed)}
                         aria-label={collapsed ? "Étendre la barre latérale" : "Réduire la barre latérale"}
-                        className="flex-1 flex items-center justify-center p-2.5 rounded-xl transition-all hover:bg-[rgba(148,163,184,0.05)] text-[var(--text-3)] hover:text-[var(--text-1)] border border-transparent hover:border-[var(--border-0)]"
+                        className="max-lg:hidden flex-1 flex items-center justify-center p-2.5 rounded-xl transition-all hover:bg-[rgba(148,163,184,0.05)] text-[var(--text-3)] hover:text-[var(--text-1)] border border-transparent hover:border-[var(--border-0)]"
                     >
                         {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
                     </button>
                 </div>
             </div>
         </motion.aside>
+        </>
     );
 }

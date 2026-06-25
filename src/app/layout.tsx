@@ -134,12 +134,15 @@ export default function RootLayout({
             <div className="tech-grid" />
             <div className="noise" />
 
+            {/* Skip link for keyboard / screen-reader users */}
+            <a href="#main-content" className="skip-to-content">Aller au contenu</a>
+
             <div className="relative z-10 flex min-h-screen">
               <Sidebar />
-              {/* Spacer div to push content past the fixed sidebar */}
-              <div className="w-[300px] shrink-0" />
-              <main className="flex-1 min-w-0">
-                <div className="max-w-[1100px] mx-auto px-8 py-10">
+              {/* Spacer div pushes content past the fixed sidebar (desktop only) */}
+              <div className="hidden lg:block lg:w-[300px] shrink-0" />
+              <main id="main-content" className="flex-1 min-w-0">
+                <div className="max-w-[1100px] mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-12 lg:py-10">
                   {children}
                 </div>
               </main>
