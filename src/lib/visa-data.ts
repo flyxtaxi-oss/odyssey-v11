@@ -17,11 +17,18 @@ const VISA_DATABASE: Record<string, CountryVisaRules> = {
   "MX": { country: "Mexique", flag: "🇲🇽", maxDays: 180, visaType: "Tourist Exemption" },
 };
 
+export type VisaCountryOption = CountryVisaRules & { code: string };
+
+/** Liste des pays disponibles pour le Visa Tracker (pour les sélecteurs). */
+export function getAvailableVisaCountries(): VisaCountryOption[] {
+  return Object.entries(VISA_DATABASE).map(([code, rules]) => ({ code, ...rules }));
+}
+
 export const visaDataService = {
   async getCountryVisaData(countryCode: string): Promise<CountryVisaRules> {
     // Simule un appel réseau ou Firestore
     await new Promise((resolve) => setTimeout(resolve, 300));
-    
+
     // Retourne le pays s'il existe, sinon une règle générique de 90 jours
     return VISA_DATABASE[countryCode.toUpperCase()] || { country: countryCode, flag: "🌍", maxDays: 90, visaType: "Tourist" };
   }
