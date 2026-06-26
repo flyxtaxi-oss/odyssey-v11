@@ -32,9 +32,13 @@ const stagger = {
     show: { opacity: 1, transition: { staggerChildren: 0.06 } },
 };
 
-function Toggle({ enabled, onChange }: { enabled: boolean; onChange: () => void }) {
+function Toggle({ enabled, onChange, label }: { enabled: boolean; onChange: () => void; label: string }) {
     return (
         <button
+            type="button"
+            role="switch"
+            aria-checked={enabled}
+            aria-label={label}
             onClick={onChange}
             className="w-11 h-[24px] rounded-full relative transition-all duration-300 shrink-0 outline-none"
             style={{
@@ -127,11 +131,19 @@ export default function SettingsPage() {
             <motion.div variants={fadeUp} className="relative mt-2 text-center md:text-left">
                 <div className="inline-flex items-center gap-2 mb-4">
                     <SettingsIcon className="w-4 h-4 text-[var(--primary)]" />
-                    <span className="section-label tracking-widest text-[var(--text-2)] font-mono-tech uppercase">Paramètres_Système_V10</span>
+                    <span className="text-xs font-bold uppercase tracking-widest text-[var(--text-3)] font-mono-tech">Paramètres_Système_V10</span>
                 </div>
                 <h1 className="text-[clamp(2.5rem,5vw,3.5rem)] font-extrabold tracking-tight leading-[1] text-[var(--text-0)] font-display">
                     Configuration <span className="text-gradient-primary">DeepSpace</span>
                 </h1>
+                {saveMsg && (
+                    <p
+                        role="status"
+                        className={`mt-3 text-[11px] font-mono-tech uppercase tracking-widest ${saveMsg.startsWith("Erreur") ? "text-[var(--error)]" : "text-[var(--text-3)]"}`}
+                    >
+                        {isSaving ? "Sauvegarde…" : saveMsg}
+                    </p>
+                )}
             </motion.div>
 
             {/* ─── Profile ─── */}
@@ -201,7 +213,7 @@ export default function SettingsPage() {
                                 <p className="text-[11px] text-[var(--text-3)]">{t.desc}</p>
                             </div>
                         </div>
-                        <Toggle enabled={toggles[t.key]} onChange={() => toggle(t.key)} />
+                        <Toggle enabled={toggles[t.key]} onChange={() => toggle(t.key)} label={t.label} />
                     </div>
                 ))}
             </motion.div>
@@ -228,7 +240,7 @@ export default function SettingsPage() {
                             <span className="text-[13px] text-[var(--text-1)] font-bold tracking-wide">{t.label}</span>
                             <p className="text-[11px] text-[var(--text-3)]">{t.desc}</p>
                         </div>
-                        <Toggle enabled={toggles[t.key]} onChange={() => toggle(t.key)} />
+                        <Toggle enabled={toggles[t.key]} onChange={() => toggle(t.key)} label={t.label} />
                     </div>
                 ))}
             </motion.div>
@@ -265,7 +277,7 @@ export default function SettingsPage() {
 
             {/* ─── Footer ─── */}
             <motion.div variants={fadeUp} className="text-center py-8 space-y-3">
-                <button className="text-[11px] font-mono-tech font-bold tracking-widest text-[var(--text-2)] hover:text-[var(--text-0)] hover:bg-[var(--bg-2)] px-4 py-2 rounded-lg transition-all flex items-center gap-2 mx-auto border border-transparent hover:border-[var(--border-2)]">
+                <button onClick={handleLogout} aria-label="Déconnexion" className="text-[11px] font-mono-tech font-bold tracking-widest text-[var(--text-2)] hover:text-[var(--text-0)] hover:bg-[var(--bg-2)] px-4 py-2 rounded-lg transition-all flex items-center gap-2 mx-auto border border-transparent hover:border-[var(--border-2)]">
                     <LogOut className="w-3.5 h-3.5" />
                     A R T É F A C T _ D É C O N N E X I O N
                 </button>

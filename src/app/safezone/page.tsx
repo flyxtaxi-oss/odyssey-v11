@@ -89,6 +89,7 @@ export default function SafeZonePage() {
     const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
     const [savedPosts, setSavedPosts] = useState<Set<string>>(new Set());
     const [isLive, setIsLive] = useState(false);
+    const [fetchError, setFetchError] = useState(false);
 
     // Fetch posts from API on mount
     const fetchPosts = useCallback(async () => {
@@ -100,7 +101,11 @@ export default function SafeZonePage() {
                 setPosts(data.posts.map(normalizePost));
                 setIsLive(true);
             }
-        } catch { /* fallback to static data */ }
+            setFetchError(false);
+        } catch {
+            // fallback to static data; surface a non-blocking notice
+            setFetchError(true);
+        }
     }, []);
 
     useEffect(() => { fetchPosts(); }, [fetchPosts]);
@@ -155,7 +160,7 @@ export default function SafeZonePage() {
             <div className="relative mt-2 text-center md:text-left">
                 <div className="inline-flex items-center gap-2 mb-4">
                     <Shield className="w-4 h-4 text-[var(--text-2)]" />
-                    <span className="section-label tracking-widest text-[var(--text-2)] font-mono-tech uppercase">Réseau_Neural_Sécurisé_V9</span>
+                    <span className="text-xs font-bold uppercase tracking-widest text-[var(--text-3)] font-mono-tech">Réseau_Neural_Sécurisé_V9</span>
                 </div>
                 <h1 className="text-[clamp(2.5rem,5vw,3.5rem)] font-extrabold tracking-tight leading-[1] text-[var(--text-0)] font-display">
                     La <span className="text-gradient-primary">Safe-Zone</span>
@@ -193,11 +198,14 @@ export default function SafeZonePage() {
                         JL
                     </div>
                     <div className="flex-1">
+                        <label htmlFor="post-composer" className="sr-only">Rédiger une transmission</label>
                         <textarea
+                            id="post-composer"
                             value={newPost}
                             onChange={(e) => setNewPost(e.target.value)}
                             placeholder=">> INITIALISER TRANSMISSION..."
                             rows={3}
+                            aria-label="Rédiger une transmission"
                             className="w-full bg-transparent text-[14px] outline-none resize-none font-mono-tech text-[var(--text-0)] placeholder:text-[var(--text-3)] leading-relaxed"
                         />
                     </div>
@@ -232,7 +240,13 @@ export default function SafeZonePage() {
                             className="mt-4 flex items-center gap-2 text-[11px] font-mono-tech uppercase tracking-widest px-4 py-3 rounded-xl ml-14 bg-[var(--bg-2)] border border-[var(--border-2)] text-[var(--text-1)]"
                         >
                             {modResult === "success" ? <Sparkles className="w-4 h-4 text-[var(--primary)]" /> : <AlertTriangle className="w-4 h-4 text-[var(--error)]" />}
-                            {modResult === "success" ? "TRANSMISSION SÉCURISÉE CONFIRMÉE" : "ALERTE: FRÉQUENCE TOXIQUE DÉTECTÉE. ANNULATION."}
+                            <span className={modResult === "success" ? undefined : "text-[var(--error)]"}>
+                                {modResult === "success"
+                                    ? "TRANSMISSION SÉCURISÉE CONFIRMÉE"
+                                    : modResult === "error"
+                                        ? "ERREUR RÉSEAU. TRANSMISSION ÉCHOUÉE. RÉESSAYEZ."
+                                        : "ALERTE: FRÉQUENCE TOXIQUE DÉTECTÉE. ANNULATION."}
+                            </span>
                         </motion.div>
                     )}
                 </AnimatePresence>
@@ -240,6 +254,11 @@ export default function SafeZonePage() {
 
             {/* ─── Data Stream (Feed) ─── */}
             <div className="space-y-4">
+                {fetchError && (
+                    <p className="text-[11px] font-mono-tech uppercase tracking-widest text-[var(--error)]" role="status">
+                        Flux temps réel indisponible — affichage des données en cache.
+                    </p>
+                )}
                 <AnimatePresence>
                     {posts.map((post, i) => (
                         <motion.div
@@ -281,7 +300,7 @@ export default function SafeZonePage() {
                                         </span>
                                     </div>
                                 </div>
-                                <button className="opacity-0 group-hover/post:opacity-100 transition-opacity p-2 rounded-lg hover:bg-[var(--bg-2)] text-[var(--text-2)]">
+                                <button aria-label="Plus d'options" className="opacity-0 group-hover/post:opacity-100 transition-opacity p-2 rounded-lg hover:bg-[var(--bg-2)] text-[var(--text-2)]">
                                     <MoreHorizontal className="w-5 h-5" />
                                 </button>
                             </div>
@@ -302,6 +321,8 @@ export default function SafeZonePage() {
                                 <motion.button
                                     whileTap={{ scale: 0.9 }}
                                     onClick={() => toggleLike(post.id)}
+                                    aria-label={likedPosts.has(post.id) ? "Retirer le j'aime" : "Aimer"}
+                                    aria-pressed={likedPosts.has(post.id)}
                                     className="flex items-center gap-2 text-[12px] px-3 py-1.5 rounded-lg transition-all border"
                                     style={{
                                         background: likedPosts.has(post.id) ? "var(--bg-2)" : "transparent",
@@ -312,13 +333,15 @@ export default function SafeZonePage() {
                                     <Heart className="w-4 h-4" fill={likedPosts.has(post.id) ? "currentColor" : "none"} />
                                     <span className="font-mono-tech font-bold">{post.likes + (likedPosts.has(post.id) ? 1 : 0)}</span>
                                 </motion.button>
-                                <button className="flex items-center gap-2 text-[12px] px-3 py-1.5 rounded-lg text-[var(--text-2)] transition-all border border-transparent hover:bg-[var(--bg-2)] hover:border-[var(--border-1)]">
+                                <button aria-label="Commenter" className="flex items-center gap-2 text-[12px] px-3 py-1.5 rounded-lg text-[var(--text-2)] transition-all border border-transparent hover:bg-[var(--bg-2)] hover:border-[var(--border-1)]">
                                     <MessageCircle className="w-4 h-4" />
                                     <span className="font-mono-tech font-bold">{post.comments}</span>
                                 </button>
                                 <motion.button
                                     whileTap={{ scale: 0.9 }}
                                     onClick={() => toggleSave(post.id)}
+                                    aria-label={savedPosts.has(post.id) ? "Retirer des favoris" : "Enregistrer"}
+                                    aria-pressed={savedPosts.has(post.id)}
                                     className="flex items-center gap-2 text-[12px] px-3 py-1.5 rounded-lg ml-auto transition-all border"
                                     style={{
                                         background: savedPosts.has(post.id) ? "var(--bg-2)" : "transparent",

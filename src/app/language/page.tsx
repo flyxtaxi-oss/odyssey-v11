@@ -45,6 +45,7 @@ export default function LanguageLabPage() {
         { id: 3, title: "Check-in at the Airport", level: "B1", description: "Handle luggage issues and boarding pass printing." },
     ]);
     const [isLoading, setIsLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
 
     // Fetch language data from API
     useEffect(() => {
@@ -72,7 +73,10 @@ export default function LanguageLabPage() {
                         })));
                     }
                 }
-            } catch { /* ignore */ }
+                setLoadError(false);
+            } catch {
+                setLoadError(true);
+            }
             setIsLoading(false);
         };
         fetchData();
@@ -102,7 +106,10 @@ export default function LanguageLabPage() {
                     })));
                 }
             }
-        } catch { /* ignore */ }
+            setLoadError(false);
+        } catch {
+            setLoadError(true);
+        }
     }, []);
 
     const dailyGoalProgress = profile.xp_points > 0 ? Math.min(100, Math.round((profile.xp_points / 1000) * 100)) : 0;
@@ -189,7 +196,7 @@ export default function LanguageLabPage() {
     };
 
     const RoleplayMode = () => (
-        <div className="max-w-4xl mx-auto py-10 h-[70vh] flex flex-col">
+        <div className="max-w-4xl mx-auto py-10 h-[70dvh] max-h-[70vh] flex flex-col">
             <div className="flex justify-between items-center mb-6">
                 <button className="btn-ghost-glow" onClick={() => setLearningMode('idle')}>End Session</button>
                 <div className="text-sm font-bold uppercase tracking-wider text-[var(--primary)] flex items-center gap-2">
@@ -230,13 +237,16 @@ export default function LanguageLabPage() {
                 </div>
 
                 <div className="mt-4 pt-4 border-t border-[var(--border-0)] flex gap-4">
+                    <label htmlFor="roleplay-input" className="sr-only">Type your response</label>
                     <input
+                        id="roleplay-input"
                         title="Chat Input"
+                        aria-label="Type your response"
                         type="text"
                         placeholder="Type your response or use voice..."
                         className="input-sci-fi flex-1 rounded-full px-6 py-3"
                     />
-                    <button title="Send" className="rounded-full w-12 h-12 p-0 flex items-center justify-center bg-[var(--primary)] hover:brightness-110 text-[var(--bg-0)] transition-all shadow-lg hover:shadow-[0_0_15px_rgba(143,245,255,0.3)]">
+                    <button title="Send" aria-label="Send message" className="rounded-full w-12 h-12 p-0 flex items-center justify-center bg-[var(--primary)] hover:brightness-110 text-[var(--bg-0)] transition-all shadow-lg hover:shadow-[0_0_15px_rgba(143,245,255,0.3)]">
                         <ArrowRight className="w-5 h-5" />
                     </button>
                 </div>
@@ -270,8 +280,14 @@ export default function LanguageLabPage() {
                     {learningMode === 'idle' ? (
                         <div className="space-y-10">
 
+                            {loadError && (
+                                <p className="text-sm text-[var(--error)]" role="status">
+                                    Couldn&apos;t load your latest language data. Showing defaults.
+                                </p>
+                            )}
+
                             {/* Dashboard Stats */}
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                                 <div className="glass-panel p-6 flex flex-col items-center justify-center text-center">
                                     <Globe className="w-8 h-8 text-[var(--accent-cyan)] mb-3" />
                                     <div className="text-2xl font-bold text-[var(--text-0)]">{profile.target_language}</div>
@@ -304,10 +320,12 @@ export default function LanguageLabPage() {
                             </div>
 
                             {/* Tabs navigation */}
-                            <div className="flex bg-[var(--bg-2)] border border-[var(--border-0)] p-1 rounded-xl w-fit mb-8 shadow-inner">
+                            <div role="tablist" className="flex bg-[var(--bg-2)] border border-[var(--border-0)] p-1 rounded-xl w-fit mb-8 shadow-inner">
                                 {['flashcards', 'roleplay', 'progress'].map(tab => (
                                     <button
                                         key={tab}
+                                        role="tab"
+                                        aria-selected={activeTab === tab}
                                         onClick={() => setActiveTab(tab)}
                                         className={`px-6 py-2 rounded-lg text-sm font-bold uppercase transition-all ${activeTab === tab ? 'bg-[var(--primary)] text-[var(--bg-0)] shadow-md' : 'text-[var(--text-2)] hover:text-[var(--text-1)]'}`}
                                     >

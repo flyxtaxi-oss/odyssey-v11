@@ -35,7 +35,7 @@ export default function JarvisPage() {
     const [copiedId, setCopiedId] = useState<string | null>(null);
     const [isListening, setIsListening] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
-    const inputRef = useRef<HTMLInputElement>(null);
+    const inputRef = useRef<HTMLTextAreaElement>(null);
 
     useEffect(() => {
         scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -135,7 +135,7 @@ export default function JarvisPage() {
     const currentPersona = personas.find((p) => p.id === activePersona)!;
 
     return (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-[calc(100vh-80px)] flex flex-col pt-2 max-w-4xl mx-auto w-full">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-[calc(100dvh-80px)] flex flex-col pt-2 max-w-4xl mx-auto w-full">
             {/* ─── Top Bar ─── */}
             <div className="flex items-center justify-between py-4 mb-2 border-b border-[var(--border-0)]">
                 <div className="flex items-center gap-4">
@@ -169,6 +169,8 @@ export default function JarvisPage() {
                             onClick={() => setActivePersona(p.id)}
                             className="relative w-9 h-9 flex items-center justify-center text-sm transition-all rounded-lg"
                             title={`${p.label} — ${p.desc}`}
+                            aria-label={`${p.label} — ${p.desc}`}
+                            aria-pressed={activePersona === p.id}
                         >
                             {activePersona === p.id && (
                                 <motion.div
@@ -215,7 +217,7 @@ export default function JarvisPage() {
 
                                 {/* Bubble */}
                                 <div
-                                    className={`group max-w-[80%] px-5 py-3.5 text-[15px] leading-relaxed relative ${isUser ? "rounded-2xl rounded-tr-[4px]" : "rounded-2xl rounded-tl-[4px]"
+                                    className={`group max-w-[90%] sm:max-w-[80%] px-5 py-3.5 text-[15px] leading-relaxed relative ${isUser ? "rounded-2xl rounded-tr-[4px]" : "rounded-2xl rounded-tl-[4px]"
                                         }`}
                                     style={
                                         isUser
@@ -239,7 +241,7 @@ export default function JarvisPage() {
                                         return (
                                             <p key={i} className={`mb-1 ${isUser ? "font-medium" : "font-normal"}`}>
                                                 {line.split("**").map((part, j) =>
-                                                    j % 2 === 1 ? <strong key={j} className={`font-semibold ${isUser ? "text-var(--bg-0)" : "text-white"}`}>{part}</strong> : part
+                                                    j % 2 === 1 ? <strong key={j} className={`font-semibold ${isUser ? "text-[var(--bg-0)]" : "text-white"}`}>{part}</strong> : part
                                                 )}
                                             </p>
                                         );
@@ -248,10 +250,10 @@ export default function JarvisPage() {
                                     {/* Actions */}
                                     {!isUser && (
                                         <div className="flex items-center gap-2 mt-3 pt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button onClick={() => speak(msg.content)} className="p-1.5 rounded-md hover:bg-[var(--bg-3)] transition-colors text-[var(--text-3)] hover:text-[var(--text-1)]" title="Écouter">
+                                            <button onClick={() => speak(msg.content)} className="p-1.5 rounded-md hover:bg-[var(--bg-3)] transition-colors text-[var(--text-3)] hover:text-[var(--text-1)]" title="Écouter" aria-label="Écouter le message">
                                                 <Volume2 className="w-4 h-4" />
                                             </button>
-                                            <button onClick={() => copyText(msg.id, msg.content)} className="p-1.5 rounded-md hover:bg-[var(--bg-3)] transition-colors text-[var(--text-3)] hover:text-[var(--text-1)]" title="Copier">
+                                            <button onClick={() => copyText(msg.id, msg.content)} className="p-1.5 rounded-md hover:bg-[var(--bg-3)] transition-colors text-[var(--text-3)] hover:text-[var(--text-1)]" title="Copier" aria-label="Copier le message">
                                                 {copiedId === msg.id
                                                     ? <Check className="w-4 h-4 text-green-400" />
                                                     : <Copy className="w-4 h-4" />
@@ -303,13 +305,16 @@ export default function JarvisPage() {
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
                             onClick={toggleVoice}
+                            aria-label={isListening ? "Arrêter la dictée vocale" : "Démarrer la dictée vocale"}
+                            aria-pressed={isListening}
                             className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${isListening ? 'bg-red-500/10 text-red-500' : 'text-[var(--text-2)] hover:text-white hover:bg-[var(--bg-3)]'}`}
                         >
                             {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
                         </motion.button>
 
                         <textarea
-                            ref={inputRef as any}
+                            ref={inputRef}
+                            id="jarvis-input"
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={(e) => {
@@ -319,6 +324,7 @@ export default function JarvisPage() {
                                 }
                             }}
                             placeholder={isListening ? "Enregistrement vocal..." : "Message Jarvis..."}
+                            aria-label="Message à Jarvis"
                             className="flex-1 bg-transparent max-h-32 min-h-[40px] py-2.5 text-[15px] outline-none placeholder:text-[var(--text-3)] text-[var(--text-0)] resize-none"
                             style={{ height: input ? 'auto' : '40px' }}
                             rows={1}
@@ -329,6 +335,7 @@ export default function JarvisPage() {
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
                                 onClick={handleSend}
+                                aria-label="Envoyer le message"
                                 disabled={!input.trim() || isLoading}
                                 className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${input.trim() ? 'bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)] text-[var(--bg-0)] shadow-[0_4px_15px_rgba(143,245,255,0.25)]' : 'bg-[var(--bg-3)] text-[var(--text-3)]'}`}
                             >

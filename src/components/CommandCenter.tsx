@@ -87,7 +87,9 @@ export default function CommandCenter() {
           <motion.div 
             initial={{ scale: 0.95, y: -20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: -20 }}
             transition={{ type: "spring", damping: 25, stiffness: 400 }}
-            className="bg-slate-900 border border-slate-700 shadow-2xl shadow-indigo-500/10 rounded-2xl w-full max-w-2xl overflow-hidden"
+            role="dialog"
+            aria-modal="true"
+            className="bg-slate-900 border border-slate-700 shadow-2xl shadow-indigo-500/10 rounded-2xl w-full max-w-[calc(100vw-2rem)] sm:max-w-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-4 border-b border-slate-800 flex items-center gap-3 bg-slate-900/50">
@@ -103,7 +105,7 @@ export default function CommandCenter() {
               <span className="text-sm font-semibold text-slate-300">
                 J.A.R.V.I.S. Command Center <span className="text-slate-600 font-mono ml-2">Cmd + J</span>
               </span>
-              <button onClick={() => setIsOpen(false)} className="ml-auto p-1 hover:bg-slate-800 rounded-lg transition-colors">
+              <button onClick={() => setIsOpen(false)} aria-label="Fermer" className="ml-auto p-1 hover:bg-slate-800 rounded-lg transition-colors">
                 <X className="w-4 h-4 text-slate-400" />
               </button>
             </div>
@@ -116,7 +118,7 @@ export default function CommandCenter() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Demandez-moi de planifier un vol, réserver un dîner ou traduire un document..."
-                className="w-full bg-transparent text-white placeholder-slate-500 pl-12 pr-14 py-4 text-lg outline-none focus:ring-0"
+                className="w-full bg-transparent text-white placeholder-slate-500 pl-12 pr-14 py-4 text-lg outline-none rounded-xl focus:ring-2 focus:ring-[var(--primary)]"
                 disabled={status === "thinking" || status === "executing"}
               />
               <button 

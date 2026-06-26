@@ -35,7 +35,7 @@ export default function VisaTracker({ countryCode, entryDate }: VisaTrackerProps
     fetchVisa();
   }, [countryCode, entryDate]);
 
-  if (!visaData) return <div className="animate-pulse h-24 bg-slate-800 rounded-xl" />;
+  if (!visaData) return <div aria-busy="true" aria-label="Chargement des données visa" className="animate-pulse h-24 bg-slate-800 rounded-xl" />;
 
   const urgencyColors = {
     safe: "text-emerald-400 bg-emerald-400/10 border-emerald-400/20",

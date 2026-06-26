@@ -131,7 +131,7 @@ export default async function VisaCountryPage({ params }: PageProps) {
         <Link
           href="/simulator"
           className="inline-block px-6 py-3 rounded-xl text-white font-bold"
-          style={{ background: "linear-gradient(135deg, #2563EB, #7C3AED)" }}
+          style={{ background: "var(--gradient-blue-purple)" }}
         >
           Simuler ma trajectoire →
         </Link>

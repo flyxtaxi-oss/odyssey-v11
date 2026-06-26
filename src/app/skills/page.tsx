@@ -43,6 +43,7 @@ export default function SkillAccelerator() {
     const [loading, setLoading] = useState(true);
     const [newSkillName, setNewSkillName] = useState('');
     const [selectedTrack, setSelectedTrack] = useState<string | null>(null);
+    const [fetchError, setFetchError] = useState(false);
 
     useEffect(() => {
         fetchData();
@@ -57,8 +58,10 @@ export default function SkillAccelerator() {
             if (data.tracks && data.tracks.length > 0 && !selectedTrack) {
                 setSelectedTrack(data.tracks[0].id);
             }
+            setFetchError(false);
         } catch (error) {
             console.error('Error fetching skills data:', error);
+            setFetchError(true);
         } finally {
             setLoading(false);
         }
@@ -133,14 +136,14 @@ export default function SkillAccelerator() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-[#070B19] flex items-center justify-center">
+            <div className="min-h-screen bg-[var(--bg-0)] flex items-center justify-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-[#070B19] text-white p-8 overflow-y-auto">
+        <div className="min-h-screen bg-[var(--bg-0)] text-white p-8 overflow-y-auto">
             <div className="max-w-7xl mx-auto space-y-8">
                 {/* Header section */}
                 <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
@@ -149,6 +152,11 @@ export default function SkillAccelerator() {
                             Skill Accelerator
                         </h1>
                         <p className="text-white/60 mt-2 text-lg">Master new capabilities through guided missions.</p>
+                        {fetchError && (
+                            <p className="mt-2 text-sm text-[var(--error)]" role="status">
+                                Couldn&apos;t load your skills. Please try again.
+                            </p>
+                        )}
                     </div>
                     <div className="flex gap-4">
                         <div className="bg-white/5 backdrop-blur-md border border-white/10 px-6 py-3 rounded-2xl flex items-center gap-3">
@@ -167,14 +175,16 @@ export default function SkillAccelerator() {
                 <div className="bg-white/5 backdrop-blur-md border border-white/10 p-6 rounded-2xl">
                     <form onSubmit={handleCreateTrack} className="flex gap-4 items-end">
                         <div className="flex-1">
-                            <label className="block text-sm font-medium text-white/70 mb-2">
+                            <label htmlFor="new-skill" className="block text-sm font-medium text-white/70 mb-2">
                                 What do you want to learn next?
                             </label>
                             <input
+                                id="new-skill"
                                 type="text"
                                 value={newSkillName}
                                 onChange={(e) => setNewSkillName(e.target.value)}
                                 placeholder="e.g. Machine Learning, Public Speaking, React Native..."
+                                aria-label="What do you want to learn next?"
                                 className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
                             />
                         </div>
@@ -281,6 +291,7 @@ export default function SkillAccelerator() {
                                                             onClick={() => handleCompleteMission(mission.id)}
                                                             className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/50 hover:bg-emerald-500/20 hover:text-emerald-400 hover:border-emerald-500/50 transition-all duration-300 flex-shrink-0"
                                                             title="Mark as completed"
+                                                            aria-label="Mark mission as completed"
                                                         >
                                                             <CheckCircle2 className="w-6 h-6 group-hover:scale-110 transition-transform" />
                                                         </button>

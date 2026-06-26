@@ -91,6 +91,7 @@ export default function PredictPage() {
     });
     const [isSimulating, setIsSimulating] = useState(false);
     const [result, setResult] = useState<PredictionResult | null>(null);
+    const [error, setError] = useState<string | null>(null);
 
     const toggleSkill = (skill: string) => {
         setProfile(prev => ({
@@ -105,6 +106,7 @@ export default function PredictPage() {
         if (!query.trim() || profile.skills.length === 0) return;
         
         setIsSimulating(true);
+        setError(null);
         setStep("simulating");
 
         try {
@@ -121,13 +123,19 @@ export default function PredictPage() {
                 }),
             });
 
+            if (!res.ok) throw new Error(`La simulation a échoué (${res.status})`);
+
             const data = await res.json();
             if (data.prediction) {
                 setResult(data.prediction);
                 setStep("results");
+            } else {
+                throw new Error("Réponse de simulation invalide.");
             }
-        } catch (error) {
-            console.error("Simulation error:", error);
+        } catch (err) {
+            console.error("Simulation error:", err);
+            setError(err instanceof Error ? err.message : "Une erreur est survenue pendant la simulation.");
+            setStep("profile");
         } finally {
             setIsSimulating(false);
         }
@@ -259,11 +267,12 @@ Généré par Odyssey.ai - Life Operating System
                             >
                                 {/* Question Input */}
                                 <div className="glass-panel p-8">
-                                    <label className="block text-sm font-medium text-[var(--text-1)] mb-4 font-label">
+                                    <label htmlFor="predict-query" className="block text-sm font-medium text-[var(--text-1)] mb-4 font-label">
                                         <Brain className="w-4 h-4 inline mr-2" />
                                         Quelle question souhaitez-vous explorer?
                                     </label>
                                     <textarea
+                                        id="predict-query"
                                         value={query}
                                         onChange={(e) => setQuery(e.target.value)}
                                         placeholder="Ex: Si je déménage à Lisbonne en 2025, quelle sera ma trajectoire professionnelle et sociale sur 2 ans?"
@@ -277,11 +286,13 @@ Généré par Odyssey.ai - Life Operating System
                                         <Target className="w-4 h-4 inline mr-2" />
                                         Type de scénario
                                     </label>
-                                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
                                         {scenarios.map((s) => (
                                             <button
                                                 key={s.id}
                                                 onClick={() => setScenario(s.id as ScenarioType)}
+                                                aria-label={s.label}
+                                                aria-pressed={scenario === s.id}
                                                 className={`p-4 rounded-xl border text-left transition-all ${scenario === s.id ? 'border-[var(--primary)] bg-[var(--primary)]/10' : 'border-[var(--border-0)] bg-[var(--bg-2)] hover:border-[var(--border-1)]'}`}
                                             >
                                                 <s.icon className={`w-6 h-6 mb-2 ${scenario === s.id ? 'text-[var(--primary)]' : 'text-[var(--text-2)]'}`} />
@@ -302,6 +313,8 @@ Généré par Odyssey.ai - Life Operating System
                                             <button
                                                 key={d.id}
                                                 onClick={() => setDestination(d.id)}
+                                                aria-label={d.name}
+                                                aria-pressed={destination === d.id}
                                                 className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all ${destination === d.id ? 'border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]' : 'border-[var(--border-0)] bg-[var(--bg-2)] text-[var(--text-2)]'}`}
                                             >
                                                 {d.flag} {d.name}
@@ -322,6 +335,8 @@ Généré par Odyssey.ai - Life Operating System
                                         max="60"
                                         value={timeHorizon}
                                         onChange={(e) => setTimeHorizon(Number(e.target.value))}
+                                        aria-label="Horizon temporel"
+                                        aria-valuetext={`${timeHorizon} mois`}
                                         className="w-full h-2 bg-[var(--bg-3)] rounded-lg appearance-none cursor-pointer accent-[var(--primary)]"
                                     />
                                     <div className="flex justify-between text-xs text-[var(--text-3)] mt-2">
@@ -350,13 +365,18 @@ Généré par Odyssey.ai - Life Operating System
                                 exit={{ opacity: 0, y: -20 }}
                                 className="max-w-3xl mx-auto space-y-8"
                             >
+                                {error && (
+                                    <div role="alert" className="glass-panel p-4 border border-[var(--error)]/40 text-sm text-[var(--error)]">
+                                        ⚠️ {error}
+                                    </div>
+                                )}
                                 <div className="glass-panel p-8">
                                     <h3 className="text-xl font-bold text-[var(--text-0)] mb-6 font-display">
                                         <Users className="w-5 h-5 inline mr-2 text-[var(--primary)]" />
                                         Profil personnel
                                     </h3>
                                     
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
                                         <div>
                                             <label className="block text-sm text-[var(--text-2)] mb-2">Nationalité</label>
                                             <input
@@ -405,6 +425,7 @@ Généré par Odyssey.ai - Life Operating System
                                                 <button
                                                     key={skill}
                                                     onClick={() => toggleSkill(skill)}
+                                                    aria-pressed={profile.skills.includes(skill)}
                                                     className={`px-3 py-1.5 rounded-full text-sm transition-all ${profile.skills.includes(skill) ? 'bg-[var(--primary)] text-[var(--bg-0)]' : 'bg-[var(--bg-3)] text-[var(--text-2)] border border-[var(--border-0)]'}`}
                                                 >
                                                     {skill}
@@ -421,6 +442,8 @@ Généré par Odyssey.ai - Life Operating System
                                             max="100"
                                             value={profile.language_level.en || 0}
                                             onChange={(e) => setProfile(p => ({ ...p, language_level: { en: Number(e.target.value) } }))}
+                                            aria-label="Niveau anglais"
+                                            aria-valuetext={`${profile.language_level.en || 0}%`}
                                             className="w-full h-2 bg-[var(--bg-3)] rounded-lg appearance-none cursor-pointer accent-[var(--primary)]"
                                         />
                                         <span className="text-sm text-[var(--text-1)]">{profile.language_level.en}%</span>
@@ -498,11 +521,11 @@ Généré par Odyssey.ai - Life Operating System
                                     <p className="text-xl text-[var(--text-1)] font-medium">{getScoreLabel(result.success_score)}</p>
                                     
                                     <div className="flex justify-center gap-6 mt-8">
-                                        <button onClick={sharePrediction} className="btn-stitch flex items-center gap-2">
+                                        <button onClick={sharePrediction} aria-label="Partager la prédiction" className="btn-stitch flex items-center gap-2">
                                             <Share2 className="w-4 h-4" />
                                             Partager
                                         </button>
-                                        <button onClick={exportReport} className="flex items-center gap-2 px-4 py-2 border border-[var(--border-0)] rounded-lg text-[var(--text-1)] hover:bg-[var(--bg-2)]">
+                                        <button onClick={exportReport} aria-label="Exporter le rapport" className="flex items-center gap-2 px-4 py-2 border border-[var(--border-0)] rounded-lg text-[var(--text-1)] hover:bg-[var(--bg-2)]">
                                             <Download className="w-4 h-4" />
                                            Exporter
                                         </button>
@@ -510,7 +533,7 @@ Généré par Odyssey.ai - Life Operating System
                                 </div>
 
                                 {/* Metrics Grid */}
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                                     {[
                                         { label: "Bonheur", value: result.final_state.happiness, icon: Heart },
                                         { label: "Finance", value: result.final_state.financial_health, icon: Wallet },
@@ -570,7 +593,7 @@ Généré par Odyssey.ai - Life Operating System
                                         <Users className="w-5 h-5 inline mr-2 text-[var(--secondary)]" />
                                         Agents clés simulés
                                     </h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         {result.agent_summaries.slice(0, 4).map((agent, i) => (
                                             <div key={i} className="p-4 bg-[var(--bg-2)] rounded-xl border border-[var(--border-0)]">
                                                 <div className="flex items-center gap-3 mb-2">

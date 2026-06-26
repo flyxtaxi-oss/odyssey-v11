@@ -73,7 +73,7 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center relative overflow-hidden" style={{ background: "var(--bg-0)" }}>
+        <div className="min-h-screen flex items-center justify-center relative overflow-hidden px-4" style={{ background: "var(--bg-0)" }}>
             {/* Aurora background effects */}
             <div className="absolute top-[-30%] left-[-10%] w-[60%] h-[60%] rounded-full pointer-events-none"
                 style={{ background: "radial-gradient(ellipse, rgba(37,99,235,0.15) 0%, transparent 70%)", filter: "blur(80px)" }} />
@@ -119,7 +119,7 @@ export default function LoginPage() {
                                 placeholder="vous@exemple.com"
                                 required
                                 disabled={isLoading}
-                                className="input-sci-fi w-full py-3.5 pl-11 pr-4 text-[15px] outline-none"
+                                className={`input-sci-fi w-full py-3.5 pl-11 pr-4 text-[15px] outline-none ${isLoading ? "cursor-not-allowed" : ""}`}
                                 style={{ opacity: isLoading ? 0.7 : 1 }}
                             />
                         </div>
@@ -140,14 +140,15 @@ export default function LoginPage() {
                                 required
                                 minLength={6}
                                 disabled={isLoading}
-                                className="input-sci-fi w-full py-3.5 pl-11 pr-11 text-[15px] outline-none"
+                                className={`input-sci-fi w-full py-3.5 pl-11 pr-11 text-[15px] outline-none ${isLoading ? "cursor-not-allowed" : ""}`}
                                 style={{ opacity: isLoading ? 0.7 : 1 }}
                             />
                             <button
                                 type="button"
                                 onClick={() => setShowPassword(!showPassword)}
                                 disabled={isLoading}
-                                className="absolute right-3.5 top-1/2 -translate-y-1/2 bg-transparent border-none cursor-pointer p-0"
+                                aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                                className={`absolute right-3.5 top-1/2 -translate-y-1/2 bg-transparent border-none p-0 ${isLoading ? "cursor-not-allowed" : "cursor-pointer"}`}
                                 style={{ color: "var(--text-3)" }}
                             >
                                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -164,7 +165,7 @@ export default function LoginPage() {
                         disabled={isLoading}
                         whileHover={{ scale: isLoading ? 1 : 1.02 }}
                         whileTap={{ scale: isLoading ? 1 : 0.98 }}
-                        className="w-full py-3.5 rounded-xl border-none text-white text-[15px] font-bold flex items-center justify-center gap-2 transition-opacity"
+                        className={`w-full py-3.5 rounded-xl border-none text-white text-[15px] font-bold flex items-center justify-center gap-2 transition-opacity ${isLoading ? "cursor-not-allowed" : ""}`}
                         style={{
                             background: "linear-gradient(135deg, #2563EB, #7C3AED)",
                             cursor: isLoading ? "wait" : "pointer",
@@ -197,7 +198,7 @@ export default function LoginPage() {
                         disabled={isLoading}
                         whileHover={{ scale: isLoading ? 1 : 1.02 }}
                         whileTap={{ scale: isLoading ? 1 : 0.98 }}
-                        className="w-full py-3.5 rounded-xl text-[15px] font-bold flex items-center justify-center gap-3 transition-all border"
+                        className={`w-full py-3.5 rounded-xl text-[15px] font-bold flex items-center justify-center gap-3 transition-all border ${isLoading ? "cursor-not-allowed" : ""}`}
                         style={{
                             background: "var(--bg-2)",
                             borderColor: "var(--border-0)",

@@ -123,6 +123,7 @@ export default function SimulatorPage() {
                         <button
                             onClick={handleSave}
                             disabled={isSaving}
+                            aria-label="Sauvegarder la simulation"
                             className="btn-stitch group relative inline-flex items-center gap-2 disabled:opacity-50"
                         >
                             <span className="relative flex items-center gap-2">
@@ -147,6 +148,8 @@ export default function SimulatorPage() {
                                         whileHover={{ scale: 1.02 }}
                                         whileTap={{ scale: 0.98 }}
                                         onClick={() => setCompareIdx(i + 1)}
+                                        aria-label={`Comparer avec ${c.name}`}
+                                        aria-pressed={isActive}
                                         className={`relative px-6 py-3 rounded-2xl text-sm font-bold transition-all border overflow-hidden backdrop-blur-xl font-body ${isActive ? 'border-[rgba(143,245,255,0.4)] text-[var(--text-0)] shadow-[0_0_25px_rgba(143,245,255,0.15)]' : 'border-[var(--border-0)] text-[var(--text-2)] hover:text-[var(--text-0)] hover:border-[var(--border-1)]'}`}
                                         style={{ background: isActive ? 'rgba(143,245,255,0.08)' : 'var(--bg-2)' }}
                                     >

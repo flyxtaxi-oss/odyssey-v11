@@ -18,7 +18,7 @@ export default function NotFound() {
           animate={{ rotate: [0, 360] }}
           transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
           className="w-20 h-20 rounded-full mx-auto mb-6 flex items-center justify-center"
-          style={{ background: "linear-gradient(135deg, #2563EB, #7C3AED)" }}
+          style={{ background: "var(--gradient-blue-purple)" }}
         >
           <Sparkles size={32} color="white" />
         </motion.div>
@@ -35,7 +35,7 @@ export default function NotFound() {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               className="px-6 py-3 rounded-xl text-white font-bold flex items-center gap-2"
-              style={{ background: "linear-gradient(135deg, #2563EB, #7C3AED)" }}
+              style={{ background: "var(--gradient-blue-purple)" }}
             >
               <Home size={18} />
               Accueil
