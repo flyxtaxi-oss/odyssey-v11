@@ -70,7 +70,7 @@ export default function CommandCenter() {
         setResponse(data.reply || "J'ai bien noté votre demande.");
         setQuery("");
       }
-    } catch (error) {
+    } catch {
       setStatus("idle");
       setResponse("❌ Impossible de joindre les serveurs J.A.R.V.I.S.");
     }

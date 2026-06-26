@@ -49,17 +49,6 @@ export interface ExtractionResult {
   topics: string[];
 }
 
-// ─── Entity Extraction Patterns ─────────────────────────────────────────────
-
-const ENTITY_PATTERNS = {
-  person: /(?:je|mon|ma|mes)\s+(\w+)|^(\w+)\s+(?:dit|préfère|aime|déteste)/i,
-  place: /(?:à|en|au)\s+([A-Z][a-zÀ-Ü]+(?:\s+[A-Z][a-zÀ-Ü]+)*)|vis(?:e|ent)\s+(?:à|en|au)\s+([A-Z][a-zÀ-Ü]+)/i,
-  skill: /(?:compétence|skill|expert|spécialisé|en)\s+([a-zà-ü]+)|je\s+suis\s+(\w+)/i,
-  visa: /(?:visa|permis|séjour|titre)\s+([a-zà-ü]+)|(?:D7|NHR|Golden|DTV)\s+([a-zà-ü]+)/i,
-  goal: /(?:objectif|but|ambition| rêve|veux|voudrais)\s+([a-zà-ü\s]+)/i,
-  preference: /(?:préfère|aime|déteste|adore|cherche|veut)\s+([a-zà-ü\s]+)/i,
-};
-
 // ─── GraphRAG Engine ─────────────────────────────────────────────────────────
 
 export class GraphRAG {
@@ -304,7 +293,7 @@ export class GraphRAG {
     return `${type}_${name.toLowerCase().replace(/\s+/g, '_')}`;
   }
 
-  private generateSummary(text: string, entities: Partial<Entity>[]): string {
+  private generateSummary(text: string, _entities: Partial<Entity>[]): string {
     const lines = text.split(/[.!?]/).filter(l => l.trim().length > 20).slice(0, 3);
     return lines.join('. ').slice(0, 200);
   }

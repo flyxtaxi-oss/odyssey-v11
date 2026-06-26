@@ -9,8 +9,6 @@ import {
     Plus,
     CheckCircle2,
     Star,
-    ArrowRight,
-    TrendingUp,
     BrainCircuit,
     Award
 } from 'lucide-react';

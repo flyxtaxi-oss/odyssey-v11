@@ -4,8 +4,8 @@ import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Brain, Sparkles, Users, Target, TrendingUp, Clock,
-    ArrowRight, Loader2, Share2, Download, Star, Globe,
-    Building2, Briefcase, Wallet, Heart, Languages, Network
+    ArrowRight, Share2, Download, Star, Globe,
+    Building2, Briefcase, Wallet, Heart, Network
 } from "lucide-react";
 
 type ScenarioType = "relocation" | "career" | "investment" | "lifestyle" | "social";
@@ -179,7 +179,7 @@ Teste aussi: https://odyssey-ai.app/simulator/predict`;
                     text: shareText,
                     url: window.location.origin + '/simulator/predict',
                 });
-            } catch (e) {
+            } catch {
                 // User cancelled or error
             }
         } else {
@@ -605,7 +605,7 @@ Généré par Odyssey.ai - Life Operating System
                                                         <p className="text-xs text-[var(--text-2)]">{agent.agent.type}</p>
                                                     </div>
                                                 </div>
-                                                <p className="text-sm text-[var(--text-2)] italic">"{agent.agent.personality}"</p>
+                                                <p className="text-sm text-[var(--text-2)] italic">&quot;{agent.agent.personality}&quot;</p>
                                                 <div className="mt-2 flex items-center gap-2">
                                                     <span className={`text-xs px-2 py-0.5 rounded ${agent.relationship_to_user === 'allié' ? 'bg-[var(--success)]/20 text-[var(--success)]' : 'bg-[var(--text-3)]/20 text-[var(--text-2)]'}`}>
                                                         {agent.relationship_to_user}

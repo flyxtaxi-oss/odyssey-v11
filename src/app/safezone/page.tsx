@@ -16,7 +16,6 @@ import {
     Bookmark,
     MoreHorizontal,
     TrendingUp,
-    Loader2,
 } from "lucide-react";
 
 type Post = {
@@ -88,7 +87,7 @@ export default function SafeZonePage() {
     const [modResult, setModResult] = useState<string | null>(null);
     const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
     const [savedPosts, setSavedPosts] = useState<Set<string>>(new Set());
-    const [isLive, setIsLive] = useState(false);
+    const [, setIsLive] = useState(false);
     const [fetchError, setFetchError] = useState(false);
 
     // Fetch posts from API on mount
@@ -147,11 +146,11 @@ export default function SafeZonePage() {
     };
 
     const toggleLike = (id: string) => {
-        setLikedPosts((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+        setLikedPosts((prev) => { const n = new Set(prev); if (n.has(id)) { n.delete(id); } else { n.add(id); } return n; });
     };
 
     const toggleSave = (id: string) => {
-        setSavedPosts((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+        setSavedPosts((prev) => { const n = new Set(prev); if (n.has(id)) { n.delete(id); } else { n.add(id); } return n; });
     };
 
     return (

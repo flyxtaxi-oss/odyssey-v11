@@ -10,6 +10,9 @@ import {
   orderBy,
   limit,
   onSnapshot,
+  type QueryConstraint,
+  type Query,
+  type DocumentData,
 } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { db, COLLECTIONS } from "./firebase";
@@ -27,7 +30,7 @@ type FetchState<T> = {
 };
 
 /** Generic fetcher hook with Firestore */
-export function useApi<T>(collectionName: string, docId?: string, constraints?: any[]) {
+export function useApi<T>(collectionName: string, docId?: string, constraints?: QueryConstraint[]) {
   const [state, setState] = useState<FetchState<T>>({
     data: null,
     error: null,
@@ -48,13 +51,13 @@ export function useApi<T>(collectionName: string, docId?: string, constraints?: 
         }
       } else {
         // Collection query
-        let q = collection(db, collectionName);
+        let q: Query<DocumentData> = collection(db, collectionName);
         if (constraints && constraints.length > 0) {
-          q = query(q, ...constraints) as any;
+          q = query(q, ...constraints);
         }
         const snapshot = await getDocs(q);
         const data = snapshot.docs.map((d) => ({ id: d.id, ...d.data() })) as T[];
-        setState({ data: data as any, error: null, isLoading: false });
+        setState({ data: data as unknown as T, error: null, isLoading: false });
       }
     } catch (err) {
       setState((prev) => ({

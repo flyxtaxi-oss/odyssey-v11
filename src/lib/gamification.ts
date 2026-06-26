@@ -2,7 +2,7 @@
 // GAMIFICATION — Leaderboard, badges, achievements, XP system
 // ==============================================================================
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 
 export interface User {
   id: string;
@@ -79,7 +79,7 @@ export const BADGE_DEFINITIONS: (Omit<Badge, 'earned_at'> & { rarity: Badge['rar
 export type LeaderboardPeriod = 'weekly' | 'monthly' | 'all_time';
 
 export function useGamification(currentUserId?: string) {
-  const [users, setUsers] = useState<User[]>([
+  const [users] = useState<User[]>([
     {
       id: 'user_1',
       name: 'Marco',
@@ -212,7 +212,7 @@ export function useGamification(currentUserId?: string) {
   }, [addXP]);
 
   // Get leaderboard
-  const getLeaderboard = useCallback((period: LeaderboardPeriod = 'weekly'): LeaderboardEntry[] => {
+  const getLeaderboard = useCallback((_period: LeaderboardPeriod = 'weekly'): LeaderboardEntry[] => {
     const allUsers = [...users, currentUser].sort((a, b) => b.xp - a.xp);
     
     return allUsers.map((user, index) => ({

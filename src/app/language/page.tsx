@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { Globe, BookOpen, MessageSquare, Star, Flame, Award, ArrowRight, Loader2 } from 'lucide-react';
+import { Globe, BookOpen, MessageSquare, Star, Flame, Award, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getAuth } from 'firebase/auth';
 
@@ -44,7 +44,7 @@ export default function LanguageLabPage() {
         { id: 2, title: "Ordering in a Restaurant", level: "A2", description: "Order a 3-course meal and handle dietary restrictions." },
         { id: 3, title: "Check-in at the Airport", level: "B1", description: "Handle luggage issues and boarding pass printing." },
     ]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [, setIsLoading] = useState(true);
     const [loadError, setLoadError] = useState(false);
 
     // Fetch language data from API
@@ -228,9 +228,9 @@ export default function LanguageLabPage() {
                             <span className="font-bold text-[var(--primary)]">AI</span>
                         </div>
                         <div className="bg-[var(--bg-3)] p-4 rounded-2xl rounded-tl-sm text-[var(--text-1)]">
-                            That's great. What would you say was your biggest technical challenge in your last React project, and how did you overcome it?
+                            That&apos;s great. What would you say was your biggest technical challenge in your last React project, and how did you overcome it?
                             <div className="mt-3 pt-3 border-t border-[var(--border-0)] text-xs text-[var(--text-2)] flex items-center gap-2">
-                                <Star className="w-3 h-3 text-[var(--accent-amber)]" /> Grammar tip: Use "What were" if referring to multiple challenges, but "What was" is correct here. Good job on your vocabulary!
+                                <Star className="w-3 h-3 text-[var(--accent-amber)]" /> Grammar tip: Use &quot;What were&quot; if referring to multiple challenges, but &quot;What was&quot; is correct here. Good job on your vocabulary!
                             </div>
                         </div>
                     </div>

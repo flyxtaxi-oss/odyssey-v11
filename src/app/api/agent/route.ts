@@ -60,7 +60,7 @@ Demande : "${prompt}"
         }
 
         return NextResponse.json({ reply: aiResponse.replyText, actionExecuted: false });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("❌ [JARVIS Agent] Erreur Serveur:", error);
         return NextResponse.json({ error: "Internal Agent Error" }, { status: 500 });
     }

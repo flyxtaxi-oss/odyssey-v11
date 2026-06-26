@@ -34,11 +34,12 @@ export async function POST(request: Request) {
             plan,
             availableTools: actionRegistry.toManifest(),
             userId: userId || "anonymous",
-            fromCache: !!(plan as any)._cached // Optional flag if we want to show it in UI
+            fromCache: !!(plan as { _cached?: boolean })._cached // Optional flag if we want to show it in UI
         });
-    } catch (err: any) {
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Plan generation failed";
         return NextResponse.json(
-            { error: err.message || "Plan generation failed" },
+            { error: message },
             { status: 500 }
         );
     }

@@ -26,7 +26,7 @@ export default function NotFound() {
         <h1 className="text-8xl font-extrabold text-[var(--text-0)] mb-2">404</h1>
         <p className="text-2xl text-[var(--text-1)] mb-4">Page introuvable</p>
         <p className="text-[var(--text-3)] mb-8">
-          Cette page n'existe pas ou a été déplacée. Retournez à l'accueil pour continuer votre exploration.
+          Cette page n&apos;existe pas ou a été déplacée. Retournez à l&apos;accueil pour continuer votre exploration.
         </p>
         
         <div className="flex gap-4 justify-center">

@@ -3,8 +3,6 @@
 // Solves: Time-To-Value (TTV) & Extreme Personalization
 // ==============================================================================
 
-import { z } from "zod";
-
 export type OnboardingPhase = "discovery" | "financial" | "goals" | "complete";
 
 export interface UserBlueprint {
@@ -43,7 +41,7 @@ Remercie-le. Génère un résumé de 3 lignes de son profil (Le 'Blueprint') et 
    * Extrait structurément les données depuis la conversation d'onboarding
    * (Sera utilisé par le Tool Calling de l'Action Engine)
    */
-  static analyzeOnboardingData(conversationHistory: string): UserBlueprint {
+  static analyzeOnboardingData(_conversationHistory: string): UserBlueprint {
     // Note: Dans la réalité, cette méthode utiliserait generateObject() du Vercel AI SDK
     // pour extraire le JSON strict de la conversation.
     return {

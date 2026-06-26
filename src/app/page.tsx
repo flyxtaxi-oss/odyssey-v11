@@ -148,16 +148,10 @@ const fadeUp = {
   show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] as const } },
 };
 
-const cardHover = {
-  rest: { scale: 1, y: 0 },
-  hover: { scale: 1.02, y: -6, transition: { type: "spring", stiffness: 400, damping: 20 } },
-  tap: { scale: 0.97, transition: { duration: 0.1 } },
-};
-
 export default function DashboardPage() {
   const { user } = useAuth();
   const [data, setData] = useState<DashboardData>(FALLBACK);
-  const [isLive, setIsLive] = useState(false);
+  const [, setIsLive] = useState(false);
 
   const fetchDashboard = useCallback(async () => {
     try {

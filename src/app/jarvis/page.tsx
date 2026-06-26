@@ -30,7 +30,7 @@ export default function JarvisPage() {
     ]);
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
-    const [isStreaming, setIsStreaming] = useState(false);
+    const [, setIsStreaming] = useState(false);
     const [activePersona, setActivePersona] = useState("strategist");
     const [copiedId, setCopiedId] = useState<string | null>(null);
     const [isListening, setIsListening] = useState(false);

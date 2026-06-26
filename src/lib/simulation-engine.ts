@@ -337,7 +337,7 @@ export class SimulationEngine {
     return events;
   }
 
-  private generateInteractions(round: number): AgentInteraction[] {
+  private generateInteractions(_round: number): AgentInteraction[] {
     const interactions: AgentInteraction[] = [];
     const numInteractions = Math.min(5, Math.floor(this.agents.length / 3));
 

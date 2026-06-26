@@ -121,7 +121,7 @@ export default function OnboardingWizard() {
         {phase === "analyzing" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }} className="flex flex-col items-center justify-center mt-10 space-y-4">
             <div className="w-12 h-12 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
-            <p className="text-slate-400 font-medium animate-pulse">JARVIS génère ton Blueprint d'expatriation...</p>
+            <p className="text-slate-400 font-medium animate-pulse">JARVIS génère ton Blueprint d&apos;expatriation...</p>
           </motion.div>
         )}
 
@@ -133,7 +133,7 @@ export default function OnboardingWizard() {
               <h3 className="text-lg font-bold text-white">Analyse Express Terminée</h3>
             </div>
             <p className="text-indigo-200 text-sm mb-6 leading-relaxed">
-              Basé sur ton profil, voici ton top match immédiat. Ton simulateur complet vient d'être débloqué.
+              Basé sur ton profil, voici ton top match immédiat. Ton simulateur complet vient d&apos;être débloqué.
             </p>
             <div className="bg-slate-950/50 rounded-xl p-4 border border-slate-800 space-y-3">
               <div className="flex justify-between items-center">
@@ -146,7 +146,7 @@ export default function OnboardingWizard() {
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-slate-400">Gain Fiscal Estimé</span>
-                <span className="text-indigo-400 font-bold">~25% d'économie</span>
+                <span className="text-indigo-400 font-bold">~25% d&apos;économie</span>
               </div>
             </div>
             <button className="w-full mt-6 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition-all shadow-lg shadow-indigo-500/25">

@@ -31,10 +31,11 @@ export async function POST(request: Request) {
             analysis: result.text,
             message: "🔍 Analyse visuelle terminée"
         });
-    } catch (err: any) {
+    } catch (err: unknown) {
         console.error("❌ [JARVIS Vision] Error:", err);
+        const message = err instanceof Error ? err.message : "Vision analysis failed";
         return NextResponse.json(
-            { error: err.message || "Vision analysis failed" },
+            { error: message },
             { status: 500 }
         );
     }

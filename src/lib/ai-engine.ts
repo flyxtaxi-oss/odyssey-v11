@@ -135,7 +135,7 @@ export function getMemoryContext(userId: string): string {
     return parts.join("\n");
 }
 
-export function updateMemory(userId: string, userMessage: string, aiResponse: string): void {
+export function updateMemory(userId: string, userMessage: string, _aiResponse: string): void {
     let kg = knowledgeStore.get(userId);
     if (!kg) {
         kg = {

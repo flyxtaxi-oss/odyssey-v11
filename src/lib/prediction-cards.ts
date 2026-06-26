@@ -129,7 +129,6 @@ export function usePredictionCard() {
     // Metrics bar
     const metricsY = 880;
     const barWidth = 800;
-    const barHeight = 60;
     const startX = (width - barWidth) / 2;
 
     const metrics = [

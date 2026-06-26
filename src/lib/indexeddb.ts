@@ -11,7 +11,7 @@ export interface OfflineAction {
   id?: number;
   endpoint: string;
   method: string;
-  payload: any;
+  payload: unknown;
   timestamp: number;
 }
 
@@ -33,7 +33,7 @@ export function initDB(): Promise<IDBDatabase> {
   });
 }
 
-export async function saveOfflineAction(endpoint: string, method: string, payload: any): Promise<void> {
+export async function saveOfflineAction(endpoint: string, method: string, payload: unknown): Promise<void> {
   try {
     const db = await initDB();
     return new Promise((resolve, reject) => {

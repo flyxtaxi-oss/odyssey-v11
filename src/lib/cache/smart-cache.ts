@@ -10,7 +10,7 @@ import crypto from 'crypto';
 const CACHE_FILE_PATH = path.join(process.cwd(), '.jarvis-cache.json');
 
 // In-memory fallback
-let memCache: Record<string, any> = {};
+let memCache: Record<string, { prompt: string; timestamp: number; response: unknown }> = {};
 
 // Load cache from disk on boot
 if (typeof window === 'undefined') {
@@ -19,7 +19,7 @@ if (typeof window === 'undefined') {
             const data = fs.readFileSync(CACHE_FILE_PATH, 'utf-8');
             memCache = JSON.parse(data);
         }
-    } catch (e) {
+    } catch {
         console.warn('⚠️ Could not load JARVIS cache from disk. Using clean memory cache.');
     }
 }
@@ -44,7 +44,7 @@ export function generateCacheKey(prompt: string, systemInstruction?: string, too
 /**
  * Retrieves a cached response if it exists.
  */
-export function getCachedResponse(prompt: string, systemInstruction?: string, tools?: string[]): any | null {
+export function getCachedResponse(prompt: string, systemInstruction?: string, tools?: string[]): unknown | null {
     const key = generateCacheKey(prompt, systemInstruction, tools);
     if (memCache[key]) {
         console.log(`🧠 [JARVIS Cache Hit] Tokens saved for query: "${prompt.substring(0, 30)}..."`);
@@ -56,7 +56,7 @@ export function getCachedResponse(prompt: string, systemInstruction?: string, to
 /**
  * Saves a new response to the cache.
  */
-export function setCachedResponse(prompt: string, response: any, systemInstruction?: string, tools?: string[]) {
+export function setCachedResponse(prompt: string, response: unknown, systemInstruction?: string, tools?: string[]) {
     const key = generateCacheKey(prompt, systemInstruction, tools);
     memCache[key] = {
         prompt,
