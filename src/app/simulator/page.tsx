@@ -5,6 +5,7 @@ import { motion, AnimatePresence, useSpring, useTransform, useMotionValue } from
 import {
     Globe, DollarSign, Home, Briefcase, Sun, Plane, Zap, Check, Loader2, Save, TrendingUp, Activity
 } from "lucide-react";
+import { authFetch } from "@/lib/firebase";
 
 /* ─── 3D Tilt Card ─── */
 function TiltWrap({ children, className }: { children: React.ReactNode; className?: string }) {
@@ -81,9 +82,8 @@ export default function SimulatorPage() {
         setIsSaving(true);
         setSaveStatus("idle");
         try {
-            const res = await fetch("/api/simulator", {
+            const res = await authFetch("/api/simulator", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     destination: compare.name, score: compare.score, visa: compare.visa,
                     salary: compare.salary, tax_rate: compare.tax, cost_of_living: compare.cost,

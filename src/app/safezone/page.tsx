@@ -18,6 +18,7 @@ import {
     TrendingUp,
     Loader2,
 } from "lucide-react";
+import { authFetch } from "@/lib/firebase";
 
 type Post = {
     id: string;
@@ -111,9 +112,8 @@ export default function SafeZonePage() {
         setModResult(null);
 
         try {
-            const res = await fetch("/api/posts", {
+            const res = await authFetch("/api/posts", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ content: newPost }),
             });
             const data = await res.json();

@@ -15,6 +15,7 @@ import {
     Award
 } from 'lucide-react';
 import { useAuth } from "@/contexts/AuthContext";
+import { authFetch } from "@/lib/firebase";
 
 type SkillTrack = {
     id: string;
@@ -33,11 +34,8 @@ type Mission = {
     is_completed: boolean;
 };
 
-const USER_ID = 'test-user-id';
-
 export default function SkillAccelerator() {
     const { user } = useAuth();
-    const effectiveUserId = user?.uid || USER_ID;
     const [tracks, setTracks] = useState<SkillTrack[]>([]);
     const [missions, setMissions] = useState<Mission[]>([]);
     const [loading, setLoading] = useState(true);
@@ -45,12 +43,17 @@ export default function SkillAccelerator() {
     const [selectedTrack, setSelectedTrack] = useState<string | null>(null);
 
     useEffect(() => {
-        fetchData();
-    }, []);
+        const load = async () => {
+            if (!user) { setLoading(false); return; }
+            await fetchData();
+        };
+        load();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user]);
 
     const fetchData = async () => {
         try {
-            const res = await fetch(`/api/skills?userId=${effectiveUserId}`);
+            const res = await authFetch(`/api/skills`);
             const data = await res.json();
             if (data.tracks) setTracks(data.tracks);
             if (data.missions) setMissions(data.missions);
@@ -71,12 +74,10 @@ export default function SkillAccelerator() {
         if (!newSkillName.trim()) return;
 
         try {
-            const res = await fetch('/api/skills', {
+            const res = await authFetch('/api/skills', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     action: 'create_track',
-                    user_id: effectiveUserId,
                     skill_name: newSkillName.trim()
                 })
             });
@@ -94,12 +95,12 @@ export default function SkillAccelerator() {
             // Optimistic update
             setMissions(missions.map(m => m.id === missionId ? { ...m, is_completed: true } : m));
 
-            const res = await fetch('/api/skills', {
+            const res = await authFetch('/api/skills', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    action: 'complete_mission',
-                    mission_id: missionId
+                    action: 'update_mission',
+                    mission_id: missionId,
+                    is_completed: true
                 })
             });
 

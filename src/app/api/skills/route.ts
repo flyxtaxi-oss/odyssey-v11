@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { collection, doc, setDoc, getDoc, getDocs, query, where } from "firebase/firestore";
 import { db, COLLECTIONS } from "@/lib/firebase";
-import { authenticateRequest, optionalAuth } from "@/lib/auth-middleware";
+import { authenticateRequest } from "@/lib/auth-middleware";
 import { SkillActionSchema, validateInput } from "@/lib/validation";
 import { getSecurityHeaders } from "@/lib/security";
 
@@ -13,14 +13,11 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
     try {
-        const user = await optionalAuth(req);
-        const { searchParams } = new URL(req.url);
-        const paramUserId = searchParams.get("userId");
-        const targetUserId = user?.uid || paramUserId;
-
-        if (!targetUserId) {
-            return NextResponse.json({ error: "User ID is required" }, { status: 400, headers: getSecurityHeaders() });
+        const auth = await authenticateRequest(req);
+        if (!auth.success) {
+            return NextResponse.json({ error: auth.error }, { status: auth.status, headers: getSecurityHeaders() });
         }
+        const targetUserId = auth.user.uid;
 
         const tracksQuery = query(
             collection(db, COLLECTIONS.SKILL_TRACKS),
@@ -120,6 +117,15 @@ export async function POST(req: NextRequest) {
 
         if (data.action === "update_mission") {
             const missionRef = doc(db, COLLECTIONS.SKILL_MISSIONS, data.mission_id);
+            const existingSnap = await getDoc(missionRef);
+            if (!existingSnap.exists()) {
+                return NextResponse.json({ error: "Mission introuvable" }, { status: 404, headers: getSecurityHeaders() });
+            }
+            // Vérif de propriété : on ne modifie que ses propres missions (anti-IDOR)
+            if (existingSnap.data()?.user_id !== auth.user.uid) {
+                return NextResponse.json({ error: "Accès refusé" }, { status: 403, headers: getSecurityHeaders() });
+            }
+
             await setDoc(missionRef, { is_completed: data.is_completed }, { merge: true });
 
             if (data.is_completed) {

@@ -65,23 +65,30 @@ adminDb = initialized.adminDb;
  */
 export async function verifyIdToken(token: string) {
   try {
-    // In development without service account, do basic validation
+    // Sans service account : vérification cryptographique impossible.
     if (!process.env.FIREBASE_PRIVATE_KEY) {
-      // Parse and validate token structure without verification
+      // En PRODUCTION on REFUSE tout token non vérifiable (sinon un JWT forgé passe).
+      if (process.env.NODE_ENV === "production") {
+        console.error(
+          "SECURITY: FIREBASE_PRIVATE_KEY manquant en production — tokens rejetés."
+        );
+        return null;
+      }
+      // En développement uniquement : décodage best-effort pour tester en local.
       const parts = token.split(".");
       if (parts.length !== 3) return null;
-      
+
       const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString());
-      
-      // Basic validation: check expiration
+
+      // Validation basique : expiration
       if (payload.exp && payload.exp * 1000 < Date.now()) {
         return null;
       }
-      
+
       return payload;
     }
-    
-    // Production: Full verification
+
+    // Production : vérification complète de la signature
     return await adminAuth.verifyIdToken(token);
   } catch (error) {
     console.error("Token verification failed:", error);

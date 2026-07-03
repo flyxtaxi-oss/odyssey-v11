@@ -17,6 +17,7 @@ import {
 import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { authFetch } from "@/lib/firebase";
 import VisaTracker from "@/components/VisaTracker";
 import { NotificationEngine } from "@/lib/notification-engine";
 
@@ -161,7 +162,7 @@ export default function DashboardPage() {
 
   const fetchDashboard = useCallback(async () => {
     try {
-      const res = await fetch("/api/dashboard");
+      const res = await authFetch("/api/dashboard");
       if (!res.ok) return;
       const json = await res.json();
       setData(json);
@@ -169,7 +170,7 @@ export default function DashboardPage() {
     } catch { /* fallback to static */ }
   }, []);
 
-  useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
+  useEffect(() => { fetchDashboard(); }, [fetchDashboard, user]);
 
   // Demande la permission pour les alertes J.A.R.V.I.S (Push Notifications)
   useEffect(() => {

@@ -132,6 +132,30 @@ export function getCurrentUser(): User | null {
   return auth.currentUser;
 }
 
+/**
+ * fetch() wrapper qui attache automatiquement le token Firebase (Authorization: Bearer).
+ * À utiliser côté client pour tout appel à une route API protégée.
+ */
+export async function authFetch(
+  input: RequestInfo | URL,
+  init: RequestInit = {}
+): Promise<Response> {
+  const headers = new Headers(init.headers || {});
+  if (init.body && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+  try {
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      const token = await currentUser.getIdToken();
+      headers.set("Authorization", `Bearer ${token}`);
+    }
+  } catch {
+    /* pas de token → requête envoyée sans auth (routes publiques) */
+  }
+  return fetch(input, { ...init, headers });
+}
+
 export async function createUserProfile(user: User): Promise<void> {
   const userRef = doc(db, "profiles", user.uid);
   await setDoc(userRef, {

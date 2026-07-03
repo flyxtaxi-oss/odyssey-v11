@@ -73,8 +73,8 @@ export default function SettingsPage() {
 
     // Load settings from Firestore
     useEffect(() => {
-        if (!user) { setIsLoading(false); return; }
         const loadSettings = async () => {
+            if (!user) { setIsLoading(false); return; }
             try {
                 const ref = doc(db, COLLECTIONS.PROFILES, user.uid);
                 const snap = await getDoc(ref);
@@ -113,6 +113,10 @@ export default function SettingsPage() {
         router.push("/login");
     };
 
+    const displayName = user?.displayName || user?.email?.split("@")[0] || "Explorateur";
+    const avatarInitial = displayName.charAt(0).toUpperCase();
+    const userEmail = user?.email || "—";
+
     if (isLoading) {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
@@ -143,11 +147,11 @@ export default function SettingsPage() {
                     <div
                         className="w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-bold relative bg-[var(--bg-2)] border border-[var(--border-2)] text-[var(--text-0)] shadow-[0_0_20px_rgba(255,255,255,0.05)]"
                     >
-                        J
+                        {avatarInitial}
                         <div className="absolute -bottom-1.5 -right-1.5 w-4 h-4 rounded-full bg-[var(--success)] border-[2px] border-[var(--bg-1)]" />
                     </div>
                     <div className="flex-1">
-                        <h2 className="text-[20px] font-bold text-[var(--text-0)] tracking-wide">Jibril</h2>
+                        <h2 className="text-[20px] font-bold text-[var(--text-0)] tracking-wide">{displayName}</h2>
                         <div className="flex items-center gap-2 mt-1">
                             <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded bg-gradient-to-r from-[var(--primary)]/15 to-[var(--secondary)]/15 border border-[var(--primary)]/25 text-[var(--primary)]">EXECUTIVE</span>
                             <span className="text-[10px] text-[var(--text-3)] font-mono-tech uppercase tracking-widest">France 🇫🇷</span>
@@ -160,7 +164,7 @@ export default function SettingsPage() {
 
                 <div className="space-y-0 relative z-10">
                     {[
-                        { label: "IDENTIFIANT", value: "jibril@odyssey.ai" },
+                        { label: "IDENTIFIANT", value: userEmail },
                         { label: "CLASSE", value: "Opérateur Master" },
                         { label: "COORDONNÉES", value: "France 🇫🇷" },
                         { label: "UPTIME", value: "Février 2026" },
@@ -265,7 +269,7 @@ export default function SettingsPage() {
 
             {/* ─── Footer ─── */}
             <motion.div variants={fadeUp} className="text-center py-8 space-y-3">
-                <button className="text-[11px] font-mono-tech font-bold tracking-widest text-[var(--text-2)] hover:text-[var(--text-0)] hover:bg-[var(--bg-2)] px-4 py-2 rounded-lg transition-all flex items-center gap-2 mx-auto border border-transparent hover:border-[var(--border-2)]">
+                <button onClick={handleLogout} className="text-[11px] font-mono-tech font-bold tracking-widest text-[var(--text-2)] hover:text-[var(--text-0)] hover:bg-[var(--bg-2)] px-4 py-2 rounded-lg transition-all flex items-center gap-2 mx-auto border border-transparent hover:border-[var(--border-2)]">
                     <LogOut className="w-3.5 h-3.5" />
                     A R T É F A C T _ D É C O N N E X I O N
                 </button>
