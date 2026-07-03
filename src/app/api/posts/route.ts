@@ -5,6 +5,7 @@ import { authenticateRequest, optionalAuth } from "@/lib/auth-middleware";
 import { CreatePostSchema, validateInput } from "@/lib/validation";
 import { checkPromptInjection } from "@/lib/security";
 import { getSecurityHeaders } from "@/lib/security";
+import { moderateContent } from "@/lib/moderation";
 
 // ==============================================================================
 // POSTS API — CRUD with Firebase Firestore + AI Moderation (SECURED)
@@ -111,9 +112,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // AI Moderation (mock — replace with real AI when API key is set)
-    const toxicity_score = Math.random() * 0.1; // Low score = safe
-    const is_verified = toxicity_score < 0.5;
+    // Modération déterministe (heuristique lexicale multilingue)
+    const moderation = moderateContent(content);
+    const toxicity_score = moderation.toxicityScore;
+    const is_verified = moderation.isVerified;
+
+    // Contenu toxique : refusé et non enregistré.
+    if (!is_verified) {
+      return NextResponse.json(
+        {
+          error: "Contenu refusé par la modération",
+          moderation: {
+            toxicity_score,
+            is_verified,
+            reason: "Contenu potentiellement offensant, haineux ou frauduleux",
+            categories: moderation.categories,
+          },
+        },
+        { status: 422, headers: getSecurityHeaders() }
+      );
+    }
 
     // Create new post
     const postRef = doc(collection(db, "posts"));
