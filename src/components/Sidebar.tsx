@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Brain, Globe, Users, LayoutDashboard, Settings, ChevronLeft, ChevronRight, Search, LogOut, Loader2, MessageSquare, Target, Shield, Sparkles } from "lucide-react";
+import { Brain, Globe, Users, LayoutDashboard, Settings, ChevronLeft, ChevronRight, Search, LogOut, Loader2, MessageSquare, Target, Shield, Sparkles, Banknote } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,6 +13,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 const navItems = [
     { href: "/", label: "Dashboard", icon: LayoutDashboard, shortcut: "1", color: "#2563EB" },
     { href: "/jarvis", label: "J.A.R.V.I.S.", icon: Brain, shortcut: "2", color: "#7C3AED" },
+    { href: "/transfert", label: "Transfert", icon: Banknote, shortcut: "T", color: "#22C55E" },
     { href: "/simulator", label: "Simulateur", icon: Globe, shortcut: "3", color: "#10B981" },
     { href: "/simulator/predict", label: "Prédire", icon: Sparkles, shortcut: "P", color: "#8B5CF6" },
     { href: "/visa", label: "Visa Tracker", icon: Shield, shortcut: "4", color: "#059669" },

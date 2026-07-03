@@ -30,6 +30,9 @@ jobs:
         run: npm run lint -- --max-warnings=200
         continue-on-error: true
 
+      - name: Tests (Vitest)
+        run: npm test
+
       - name: Next.js build
         run: npm run build
         env:
