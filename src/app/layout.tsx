@@ -1,5 +1,11 @@
 import type { Metadata, Viewport } from "next";
+import { Space_Grotesk, Manrope, Inter } from "next/font/google";
 import "./globals.css";
+
+// Polices auto-hébergées (plus d'@import Google Fonts bloquant le rendu).
+const fontDisplay = Space_Grotesk({ subsets: ["latin"], variable: "--font-display", display: "swap" });
+const fontBody = Manrope({ subsets: ["latin"], variable: "--font-body", display: "swap" });
+const fontLabel = Inter({ subsets: ["latin"], variable: "--font-label", display: "swap" });
 import Sidebar from "@/components/Sidebar";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ToastProvider } from "@/components/Toast";
@@ -85,10 +91,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr" suppressHydrationWarning>
+    <html lang="fr" suppressHydrationWarning className={`${fontDisplay.variable} ${fontBody.variable} ${fontLabel.variable}`}>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
