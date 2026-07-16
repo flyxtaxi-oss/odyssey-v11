@@ -543,6 +543,52 @@ body::after {
 }
 
 /* ════════════════════════════════════════════════════
+   Previously-undefined utility classes (were rendering unstyled)
+   ════════════════════════════════════════════════════ */
+
+/* ─── Sci-fi input ─── */
+.input-sci-fi {
+  background: var(--bg-2);
+  border: 1px solid var(--border-1);
+  border-radius: 12px;
+  color: var(--text-0);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.input-sci-fi::placeholder { color: var(--text-3); }
+.input-sci-fi:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
+/* ─── Ghost button with glow ─── */
+.btn-ghost-glow {
+  background: transparent;
+  border: 1px solid var(--border-1);
+  border-radius: 12px;
+  padding: 8px 16px;
+  color: var(--text-2);
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.btn-ghost-glow:hover {
+  color: var(--text-0);
+  border-color: var(--primary);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--primary) 18%, transparent);
+}
+
+/* ─── Section eyebrow label ─── */
+.section-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-3);
+}
+
+/* ════════════════════════════════════════════════════
    Global polish — "app du futur"
    ════════════════════════════════════════════════════ */
 
