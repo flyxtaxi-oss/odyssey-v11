@@ -35,7 +35,7 @@ export default function JarvisPage() {
     const [copiedId, setCopiedId] = useState<string | null>(null);
     const [isListening, setIsListening] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
-    const inputRef = useRef<HTMLInputElement>(null);
+    const inputRef = useRef<HTMLTextAreaElement>(null);
 
     useEffect(() => {
         scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -309,7 +309,7 @@ export default function JarvisPage() {
                         </motion.button>
 
                         <textarea
-                            ref={inputRef as any}
+                            ref={inputRef}
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={(e) => {

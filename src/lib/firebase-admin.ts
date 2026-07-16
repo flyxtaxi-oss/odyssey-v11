@@ -65,23 +65,32 @@ adminDb = initialized.adminDb;
  */
 export async function verifyIdToken(token: string) {
   try {
-    // In development without service account, do basic validation
+    // Without a service account, fall back to basic (UNVERIFIED) decoding.
+    // This path does NOT check the token signature, so a forged JWT could
+    // impersonate any user — it must NEVER run in production. Fail closed.
     if (!process.env.FIREBASE_PRIVATE_KEY) {
-      // Parse and validate token structure without verification
+      if (process.env.NODE_ENV === "production") {
+        console.error(
+          "Firebase Admin: FIREBASE_PRIVATE_KEY missing in production — refusing to verify tokens."
+        );
+        return null;
+      }
+
+      // Development only: parse and validate token structure without verification
       const parts = token.split(".");
       if (parts.length !== 3) return null;
-      
+
       const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString());
-      
+
       // Basic validation: check expiration
       if (payload.exp && payload.exp * 1000 < Date.now()) {
         return null;
       }
-      
+
       return payload;
     }
-    
-    // Production: Full verification
+
+    // Production: Full cryptographic verification
     return await adminAuth.verifyIdToken(token);
   } catch (error) {
     console.error("Token verification failed:", error);

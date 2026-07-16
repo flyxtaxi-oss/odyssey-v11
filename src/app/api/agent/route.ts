@@ -3,13 +3,21 @@ import { generateObject } from "ai";
 import { google } from "@ai-sdk/google";
 import { z } from "zod";
 import { executeTool } from "@/lib/action-engine";
+import { enforceRateLimit } from "@/lib/auth-middleware";
 
 export async function POST(req: Request) {
+    const limited = await enforceRateLimit(req);
+    if (limited) return limited;
+
     try {
         const { prompt } = await req.json();
 
-        if (!prompt) {
+        if (typeof prompt !== "string" || !prompt.trim()) {
             return NextResponse.json({ error: "Prompt is required" }, { status: 400 });
+        }
+
+        if (prompt.length > 8000) {
+            return NextResponse.json({ error: "Prompt trop long (max 8000 caractères)" }, { status: 400 });
         }
 
         console.log(`🧠 [JARVIS Agent] Analyse de la requête: "${prompt}"`);
@@ -60,7 +68,7 @@ Demande : "${prompt}"
         }
 
         return NextResponse.json({ reply: aiResponse.replyText, actionExecuted: false });
-    } catch (error: any) {
+    } catch (error) {
         console.error("❌ [JARVIS Agent] Erreur Serveur:", error);
         return NextResponse.json({ error: "Internal Agent Error" }, { status: 500 });
     }

@@ -6,9 +6,11 @@ service cloud.firestore {
     // PROFILES - Users can read their own profile, public profiles readable
     // ========================================================================
     match /profiles/{userId} {
-      // Anyone can read profiles (for showing user info)
-      allow read: if true;
-      
+      // Owner-only read: profiles hold personal data (email) — never public (RGPD).
+      // Server routes use firebase-admin, which bypasses these rules, so this
+      // does not affect dashboard/API reads.
+      allow read: if request.auth != null && request.auth.uid == userId;
+
       // Users can only write their own profile
       allow write: if request.auth != null && request.auth.uid == userId;
     }
@@ -70,6 +72,15 @@ service cloud.firestore {
     // CHECKINS - Daily check-ins per user
     // ========================================================================
     match /checkins/{checkinId} {
+      allow read: if request.auth != null && resource.data.user_id == request.auth.uid;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.user_id;
+      allow update, delete: if request.auth != null && resource.data.user_id == request.auth.uid;
+    }
+
+    // ========================================================================
+    // VISAS - Visa/stay tracking per user
+    // ========================================================================
+    match /visas/{visaId} {
       allow read: if request.auth != null && resource.data.user_id == request.auth.uid;
       allow create: if request.auth != null && request.auth.uid == request.resource.data.user_id;
       allow update, delete: if request.auth != null && resource.data.user_id == request.auth.uid;

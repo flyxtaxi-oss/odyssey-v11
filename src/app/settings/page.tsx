@@ -73,18 +73,20 @@ export default function SettingsPage() {
 
     // Load settings from Firestore
     useEffect(() => {
-        if (!user) { setIsLoading(false); return; }
+        if (!user) return;
+        let cancelled = false;
         const loadSettings = async () => {
             try {
                 const ref = doc(db, COLLECTIONS.PROFILES, user.uid);
                 const snap = await getDoc(ref);
-                if (snap.exists() && snap.data().settings) {
+                if (!cancelled && snap.exists() && snap.data().settings) {
                     setToggles(prev => ({ ...prev, ...snap.data().settings }));
                 }
             } catch { /* ignore */ }
-            setIsLoading(false);
+            if (!cancelled) setIsLoading(false);
         };
         loadSettings();
+        return () => { cancelled = true; };
     }, [user]);
 
     // Save settings to Firestore
@@ -113,7 +115,7 @@ export default function SettingsPage() {
         router.push("/login");
     };
 
-    if (isLoading) {
+    if (isLoading && user) {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
                 <Loader2 className="w-8 h-8 animate-spin text-[var(--text-3)]" />

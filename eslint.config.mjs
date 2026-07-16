@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Worktree git interne d'outil (branche séparée) — ne pas linter.
+    ".kilo/**",
   ]),
 ]);
 

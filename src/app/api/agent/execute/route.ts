@@ -5,6 +5,7 @@ import {
     getReceipts,
 } from "@/lib/action-engine";
 import { registerRestaurantTools } from "@/lib/tools/restaurants";
+import { authenticateRequest, enforceRateLimit } from "@/lib/auth-middleware";
 
 let toolsRegistered = false;
 function ensureTools() {
@@ -19,6 +20,9 @@ function ensureTools() {
 // ==============================================================================
 
 export async function POST(request: Request) {
+    const limited = await enforceRateLimit(request);
+    if (limited) return limited;
+
     ensureTools();
 
     try {
@@ -69,8 +73,13 @@ export async function POST(request: Request) {
     }
 }
 
-// GET — Retrieve action receipts (audit log)
+// GET — Retrieve action receipts (audit log) — authenticated only
 export async function GET(request: Request) {
+    const auth = await authenticateRequest(request);
+    if (!auth.success) {
+        return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get("limit") || "20", 10);
 

@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { verifyIdToken } from "./firebase-admin";
+import { checkRateLimit } from "./ai-engine";
 
 export type AuthenticatedRequest = NextRequest & {
   user?: {
@@ -21,7 +22,7 @@ export type AuthResult =
  * Authenticate request using Bearer token
  */
 export async function authenticateRequest(
-  req: NextRequest
+  req: Request
 ): Promise<AuthResult> {
   try {
     const authHeader = req.headers.get("authorization");
@@ -99,7 +100,7 @@ export function withAuth(
  * Optional auth - returns user if authenticated, null otherwise
  */
 export async function optionalAuth(
-  req: NextRequest
+  req: Request
 ): Promise<{ uid: string; email?: string } | null> {
   const authHeader = req.headers.get("authorization");
 
@@ -118,4 +119,40 @@ export async function optionalAuth(
     uid: decodedToken.uid || decodedToken.sub || "",
     email: decodedToken.email,
   };
+}
+
+// ─── Rate limiting for routes reachable by unauthenticated clients ────────────
+
+/** Best-effort client IP, honouring the proxy headers Vercel sets. */
+function clientIp(req: Request): string {
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) return xff.split(",")[0].trim();
+  return req.headers.get("x-real-ip") || "unknown";
+}
+
+/**
+ * Rate-limit a request by authenticated uid when a valid token is present,
+ * otherwise by client IP. Returns a 429 response when the caller is over the
+ * limit, or null to let the request proceed. Used to protect paid LLM routes
+ * from abuse without forcing authentication (which would break existing UX).
+ */
+export async function enforceRateLimit(req: Request): Promise<NextResponse | null> {
+  let key = `ip:${clientIp(req)}`;
+
+  const authHeader = req.headers.get("authorization");
+  if (authHeader?.startsWith("Bearer ")) {
+    const decoded = await verifyIdToken(authHeader.slice(7));
+    const uid = decoded?.uid || decoded?.sub;
+    if (uid) key = `uid:${uid}`;
+  }
+
+  const { allowed, resetMs } = checkRateLimit(key);
+  if (!allowed) {
+    return NextResponse.json(
+      { error: "Trop de requêtes, réessayez dans un instant.", retryAfterMs: resetMs },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(resetMs / 1000)) } }
+    );
+  }
+
+  return null;
 }

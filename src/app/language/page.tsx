@@ -221,9 +221,9 @@ export default function LanguageLabPage() {
                             <span className="font-bold text-[var(--primary)]">AI</span>
                         </div>
                         <div className="bg-[var(--bg-3)] p-4 rounded-2xl rounded-tl-sm text-[var(--text-1)]">
-                            That's great. What would you say was your biggest technical challenge in your last React project, and how did you overcome it?
+                            That&apos;s great. What would you say was your biggest technical challenge in your last React project, and how did you overcome it?
                             <div className="mt-3 pt-3 border-t border-[var(--border-0)] text-xs text-[var(--text-2)] flex items-center gap-2">
-                                <Star className="w-3 h-3 text-[var(--accent-amber)]" /> Grammar tip: Use "What were" if referring to multiple challenges, but "What was" is correct here. Good job on your vocabulary!
+                                <Star className="w-3 h-3 text-[var(--accent-amber)]" /> Grammar tip: Use &quot;What were&quot; if referring to multiple challenges, but &quot;What was&quot; is correct here. Good job on your vocabulary!
                             </div>
                         </div>
                     </div>
@@ -403,9 +403,9 @@ export default function LanguageLabPage() {
                             )}
                         </div>
                     ) : learningMode === 'flashcards' ? (
-                        <FlashcardMode />
+                        FlashcardMode()
                     ) : learningMode === 'roleplay' ? (
-                        <RoleplayMode />
+                        RoleplayMode()
                     ) : (
                         <div className="flex items-center justify-center py-20">
                             <div className="text-center glass-panel p-12 max-w-xl relative overflow-hidden">

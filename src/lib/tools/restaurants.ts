@@ -156,7 +156,7 @@ const MOCK_RESTAURANTS: Record<string, RestaurantResult[]> = {
     ],
 };
 
-const searchRestaurantsHandler: ToolHandler = async (params: any) => {
+const searchRestaurantsHandler: ToolHandler = async (params) => {
     const { query, cuisine, maxResults } = params as z.infer<typeof SearchRestaurantsParams>;
 
     const hasGooglePlacesKey = !!process.env.GOOGLE_PLACES_API_KEY;
@@ -231,7 +231,7 @@ const BookRestaurantParams = z.object({
     specialRequests: z.string().optional().default(""),
 });
 
-const bookRestaurantHandler: ToolHandler = async (params: any) => {
+const bookRestaurantHandler: ToolHandler = async (params) => {
     const { restaurantName, date, time, partySize, specialRequests } =
         params as z.infer<typeof BookRestaurantParams>;
 

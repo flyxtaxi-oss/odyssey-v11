@@ -582,7 +582,7 @@ Généré par Odyssey.ai - Life Operating System
                                                         <p className="text-xs text-[var(--text-2)]">{agent.agent.type}</p>
                                                     </div>
                                                 </div>
-                                                <p className="text-sm text-[var(--text-2)] italic">"{agent.agent.personality}"</p>
+                                                <p className="text-sm text-[var(--text-2)] italic">&quot;{agent.agent.personality}&quot;</p>
                                                 <div className="mt-2 flex items-center gap-2">
                                                     <span className={`text-xs px-2 py-0.5 rounded ${agent.relationship_to_user === 'allié' ? 'bg-[var(--success)]/20 text-[var(--success)]' : 'bg-[var(--text-3)]/20 text-[var(--text-2)]'}`}>
                                                         {agent.relationship_to_user}

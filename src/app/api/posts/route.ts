@@ -3,7 +3,7 @@ import { collection, doc, setDoc, getDocs, query, orderBy, limit } from "firebas
 import { db } from "@/lib/firebase";
 import { authenticateRequest, optionalAuth } from "@/lib/auth-middleware";
 import { CreatePostSchema, validateInput } from "@/lib/validation";
-import { checkPromptInjection } from "@/lib/security";
+import { checkPromptInjection, moderateContent } from "@/lib/security";
 import { getSecurityHeaders } from "@/lib/security";
 
 // ==============================================================================
@@ -111,9 +111,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // AI Moderation (mock — replace with real AI when API key is set)
-    const toxicity_score = Math.random() * 0.1; // Low score = safe
-    const is_verified = toxicity_score < 0.5;
+    // Heuristic content moderation (deterministic; swap for a hosted classifier later)
+    const moderation = moderateContent(content);
+    const toxicity_score = moderation.toxicity_score;
+    const is_verified = moderation.is_verified;
 
     // Create new post
     const postRef = doc(collection(db, "posts"));
@@ -153,9 +154,10 @@ export async function POST(req: NextRequest) {
         moderation: {
           toxicity_score,
           is_verified,
+          categories: moderation.categories,
           reason: is_verified
-            ? "Contenu vérifié par l'IA"
-            : "Contenu flaggé pour review",
+            ? "Contenu conforme aux règles de la communauté"
+            : `Contenu signalé pour review${moderation.categories.length ? ` (${moderation.categories.join(", ")})` : ""}`,
         },
       },
       { status: 201, headers: getSecurityHeaders() }

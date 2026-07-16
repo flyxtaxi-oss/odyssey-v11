@@ -20,6 +20,10 @@ import {
 import { checkPromptInjection, logAuditEntry, getSecurityHeaders } from "@/lib/security";
 import { detectLanguage, getJarvisLocaleInstruction } from "@/lib/i18n";
 import { getContextForQuery, updateGraphFromConversation } from "@/lib/graph-rag";
+import { getMarocKnowledge, estimateMonthlyCost, getCitySlugs } from "@/lib/maroc-data";
+import { getSereniteKnowledge } from "@/lib/maroc-serenite";
+import { getVeilleKnowledge } from "@/lib/maroc-veille";
+import { getDestinationsKnowledge } from "@/lib/expat-destinations";
 
 // ==============================================================================
 // J.A.R.V.I.S. — AI Chat Endpoint (Streaming)
@@ -61,6 +65,7 @@ const SYSTEM_PROMPT = `Tu es J.A.R.V.I.S., l'Intelligence Artificielle core d'Od
 
 ## Modules disponibles
 - **Simulateur de Trajectoire** — comparaison multipays (fiscalité, coût de vie, visas, projections financières)
+- **Vivre au Maroc** (/maroc) — hub pour étrangers, MRE et locaux : coût de la vie, séjour, fiscalité, douane, immobilier, estimateur de budget (outil analyzeMaroc)
 - **Safe-Zone** — réseau vérifié avec modération IA anti-toxicité
 - **Système de Matching** — connexion avec des mentors et experts
 - **Analytics** — Odyssey Score, métriques de progression`;
@@ -87,6 +92,26 @@ const jarvisTools = {
         execute: async ({ country }) => {
             // Logique future : Appel au CMS interne Odyssey / Base de données Visas
             return { success: true, info: `Le ${country} propose d'excellentes options fiscales en 2026. Je lance l'analyse approfondie.` };
+        },
+    }),
+    analyzeMaroc: tool({
+        description: "Analyser un projet de vie au Maroc (étranger qui s'installe, MRE qui rentre, ou local) : calcule un budget mensuel réel et l'économie vs France pour une ville donnée.",
+        inputSchema: z.object({
+            city: z.enum(getCitySlugs() as [string, ...string[]]).describe("Ville cible au Maroc"),
+            people: z.number().min(1).max(8).describe("Nombre de personnes dans le foyer"),
+            lifestyle: z.enum(["eco", "confort", "premium"]).describe("Niveau de vie souhaité"),
+        }),
+        execute: async ({ city, people, lifestyle }) => {
+            const e = estimateMonthlyCost(city, people, lifestyle);
+            return {
+                success: true,
+                city,
+                budgetEurPerMonth: e.eur,
+                budgetMadPerMonth: e.mad,
+                savingsEurPerYearVsFrance: e.savingsEurPerYear,
+                costIndexVsParis: e.vsParisPct,
+                note: "Estimation indicative Odyssey (1€≈10,8 MAD). Oriente l'utilisateur vers le hub /maroc et son estimateur interactif.",
+            };
         },
     }),
     generateInvite: tool({
@@ -143,16 +168,25 @@ export async function POST(req: Request) {
         
         // Get userId from Authorization header (Firebase token) - SECURED
         const authHeader = req.headers.get("authorization");
-        let userId = "anonymous";
-        
+        let userId = "";
+
         if (authHeader?.startsWith("Bearer ")) {
             const { verifyIdToken } = await import("@/lib/firebase-admin");
             const idToken = authHeader.slice(7);
             const decodedToken = await verifyIdToken(idToken);
-            
+
             if (decodedToken) {
-                userId = decodedToken.uid || decodedToken.sub || "anonymous";
+                userId = decodedToken.uid || decodedToken.sub || "";
             }
+        }
+
+        // Scope anonymous callers by client IP so they never share a rate-limit
+        // bucket (one anon could otherwise drain the quota for everyone) nor, worse,
+        // each other's conversational memory (cross-user data leak).
+        if (!userId) {
+            const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+                || req.headers.get("x-real-ip") || "unknown";
+            userId = `anon:${ip}`;
         }
 
         // ─── Rate Limiting ─────────────────────────────────────────
@@ -250,6 +284,10 @@ export async function POST(req: Request) {
         const personaPrompt = PERSONAS[persona] || PERSONAS.strategist;
         const fullSystemPrompt = [
             SYSTEM_PROMPT,
+            `\n${getMarocKnowledge()}`,
+            `\n${getSereniteKnowledge()}`,
+            `\n${getVeilleKnowledge()}`,
+            `\n${getDestinationsKnowledge()}`,
             `\nPersona active: ${personaPrompt}`,
             `\n${localeInstruction}`,
             memoryContext ? `\nMémoire contextuelle:\n${memoryContext}` : "",

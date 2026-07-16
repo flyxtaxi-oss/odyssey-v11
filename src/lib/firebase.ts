@@ -181,6 +181,7 @@ export const COLLECTIONS = {
   LANGUAGE_PROGRESS: "language_progress",
   LANGUAGE_LESSONS: "language_lessons",
   CHECKINS: "checkins",
+  VISAS: "visas",
   MATCHES: "matches",
   BADGES: "badges",
   AUDIT_LOG: "audit_log",

@@ -13,12 +13,16 @@ import {
   Sparkles,
   MessageSquare,
   Shield,
+  MapPin,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import VisaTracker from "@/components/VisaTracker";
+import VisaTracker, { StoredVisa } from "@/components/VisaTracker";
 import { NotificationEngine } from "@/lib/notification-engine";
+import { MarketingLanding } from "@/components/MarketingLanding";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { db, COLLECTIONS } from "@/lib/firebase";
 
 /* ─── Animated Number Counter ─── */
 function AnimatedCounter({ value, suffix = "" }: { value: number; suffix?: string }) {
@@ -105,6 +109,14 @@ const engines = [
     tag: "LIVE",
   },
   {
+    label: "Vivre au Maroc",
+    desc: "Coût, séjour, fiscalité, MRE & invest",
+    href: "/maroc",
+    icon: MapPin,
+    gradientClass: "module-card-rose",
+    tag: "🇲🇦 NEW",
+  },
+  {
     label: "Safe-Zone",
     desc: "Réseau crypté modéré",
     href: "/safezone",
@@ -155,26 +167,56 @@ const cardHover = {
 };
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const [data, setData] = useState<DashboardData>(FALLBACK);
   const [isLive, setIsLive] = useState(false);
+  const [topVisa, setTopVisa] = useState<StoredVisa | null>(null);
 
-  const fetchDashboard = useCallback(async () => {
-    try {
-      const res = await fetch("/api/dashboard");
-      if (!res.ok) return;
-      const json = await res.json();
-      setData(json);
-      setIsLive(json.source !== "static");
-    } catch { /* fallback to static */ }
-  }, []);
-
-  useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
-
-  // Demande la permission pour les alertes J.A.R.V.I.S (Push Notifications)
+  // Load dashboard data for authenticated users. Inlined so the state updates
+  // happen clearly after an await, and the hook runs before any early return.
   useEffect(() => {
-    NotificationEngine.requestPushPermission();
-  }, []);
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/dashboard");
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!cancelled) {
+          setData(json);
+          setIsLive(json.source !== "static");
+        }
+      } catch { /* fallback to static */ }
+    })();
+    return () => { cancelled = true; };
+  }, [user]);
+
+  // Load the user's most-urgent visa for the dashboard widget.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const q = query(collection(db, COLLECTIONS.VISAS), where("user_id", "==", user.uid));
+        const snap = await getDocs(q);
+        const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<StoredVisa, "id">) }));
+        const daysLeft = (v: StoredVisa) =>
+          v.max_stay_days - Math.ceil(Math.abs(new Date().getTime() - new Date(v.entry_date).getTime()) / 86400000);
+        const mostUrgent = list.length ? list.reduce((a, b) => (daysLeft(a) <= daysLeft(b) ? a : b)) : null;
+        if (!cancelled) setTopVisa(mostUrgent);
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; };
+  }, [user]);
+
+  useEffect(() => {
+    if (user) NotificationEngine.requestPushPermission();
+  }, [user]);
+
+  // Show marketing landing for non-authenticated users (massive conversion boost)
+  if (!loading && !user) {
+    return <MarketingLanding />;
+  }
 
   const stats = [
     { label: "Odyssey Score", value: data.odyssey_score, unit: "PTS", icon: Zap, delta: data.odyssey_trend, period: "cette semaine" },
@@ -356,8 +398,23 @@ export default function DashboardPage() {
         {/* Timeline */}
         <motion.div variants={fadeUp} className="lg:col-span-2">
           <div className="flex flex-col gap-6 h-full">
-            {/* Injection du composant stratégique Visa Tracker */}
-            <VisaTracker countryCode="TH" entryDate="2024-03-01" />
+            {/* Visa le plus urgent de l'utilisateur (données réelles Firestore) */}
+            {topVisa ? (
+              <VisaTracker visa={topVisa} />
+            ) : (
+              <Link
+                href="/visa"
+                className="glass-panel p-6 rounded-xl flex items-center gap-4 border border-[var(--border-0)] hover:border-[var(--primary)]/40 transition-colors"
+              >
+                <div className="w-11 h-11 rounded-xl flex items-center justify-center bg-emerald-500/15 text-emerald-400 shrink-0">
+                  <Shield className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-[var(--text-0)]">Suivi de visa</p>
+                  <p className="text-xs text-[var(--text-3)]">Ajoute ton séjour pour suivre l&apos;expiration →</p>
+                </div>
+              </Link>
+            )}
             
             <div className="glass-panel p-8 flex-1">
               <div className="flex items-center justify-between mb-8 pb-6 border-b border-[var(--border-0)]">

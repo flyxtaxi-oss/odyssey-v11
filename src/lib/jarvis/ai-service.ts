@@ -1,6 +1,6 @@
 import { generateObject } from 'ai';
 import { google } from '@ai-sdk/google';
-import { actionRegistry, ActionIntent } from '@/lib/action-engine';
+import { actionRegistry } from '@/lib/action-engine';
 import { getCachedResponse, setCachedResponse } from '@/lib/cache';
 import { z } from 'zod';
 
@@ -18,7 +18,7 @@ Règles pour parser:
 4. Paramètres de réservation : "restaurantName", "date" (YYYY-MM-DD), "time" (HH:MM), "partySize" (nombre).
 `;
 
-export async function generateActionPlanFromAI(query: string, userId: string = "anonymous") {
+export async function generateActionPlanFromAI(query: string, _userId: string = "anonymous") {
     const toolsManifest = await actionRegistry.toManifest();
     const systemInstruction = SYSTEM_PROMPT.replace('{TOOLS}', JSON.stringify(toolsManifest, null, 2));
 
@@ -67,8 +67,8 @@ export async function generateActionPlanFromAI(query: string, userId: string = "
         setCachedResponse(query, finalPlan, systemInstruction);
 
         return finalPlan;
-    } catch (e: any) {
+    } catch (e) {
         console.error("❌ [JARVIS] AI Plan Generation Error:", e);
-        throw new Error("Impossible de générer un plan avec l'IA. " + (e.message || ""));
+        throw new Error("Impossible de générer un plan avec l'IA. " + (e instanceof Error ? e.message : ""));
     }
 }
