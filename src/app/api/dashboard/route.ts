@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { doc, getDoc, collection, query, where, getDocs, orderBy, limit } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { optionalAuth } from "@/lib/auth-middleware";
+import { serverDb } from "@/lib/firestore-server";
+import { optionalAuth, enforceRateLimit } from "@/lib/auth-middleware";
 import { getSecurityHeaders } from "@/lib/security";
 
 // ==============================================================================
@@ -9,6 +8,10 @@ import { getSecurityHeaders } from "@/lib/security";
 // ==============================================================================
 
 export async function GET(req: NextRequest) {
+    // Each call fans out to several Firestore reads, which are billed.
+    const limited = await enforceRateLimit(req);
+    if (limited) return limited;
+
     try {
         const user = await optionalAuth(req);
 
@@ -19,11 +22,11 @@ export async function GET(req: NextRequest) {
 
         if (user) {
             try {
-                const profileRef = doc(db, "profiles", user.uid);
-                const profileSnap = await getDoc(profileRef);
+                const db = await serverDb();
+                const profileSnap = await db.collection("profiles").doc(user.uid).get();
 
-                if (profileSnap.exists()) {
-                    const profile = profileSnap.data();
+                if (profileSnap.exists) {
+                    const profile = profileSnap.data() ?? {};
                     odyssey_score = profile.odyssey_score || 500;
                     mental_clarity = profile.mental_clarity || 50;
                     countries_simulated = profile.countries_simulated || 0;
@@ -37,23 +40,27 @@ export async function GET(req: NextRequest) {
         let simulations_run = 0;
         if (user) {
             try {
-                const simsQuery = query(
-                    collection(db, "simulations"),
-                    where("user_id", "==", user.uid)
-                );
-                const simsSnap = await getDocs(simsQuery);
+                const db = await serverDb();
+                const simsSnap = await db
+                    .collection("simulations")
+                    .where("user_id", "==", user.uid)
+                    .get();
                 simulations_run = simsSnap.size;
             } catch { /* ignore */ }
         }
 
+        // Only for signed-in users. This sat outside the `if (user)` block, so
+        // every anonymous hit on /api/dashboard read 100 Firestore documents —
+        // billed per read, on a route with no rate limit. A loop on it was an
+        // unbounded bill, not even an attack.
         let posts_this_week = 0;
-        try {
-            const postsQuery = query(
-                collection(db, "posts"),
-                orderBy("created_at", "desc"),
-                limit(100)
-            );
-            const postsSnap = await getDocs(postsQuery);
+        if (user) try {
+            const db = await serverDb();
+            const postsSnap = await db
+                .collection("posts")
+                .orderBy("created_at", "desc")
+                .limit(100)
+                .get();
             const weekAgo = new Date();
             weekAgo.setDate(weekAgo.getDate() - 7);
             posts_this_week = postsSnap.docs.filter(

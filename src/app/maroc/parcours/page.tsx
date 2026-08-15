@@ -68,7 +68,8 @@ export default function ParcoursPage() {
     setProfile((p) => ({ ...p, [k]: v }));
 
   return (
-    <div className="space-y-12 max-w-5xl mx-auto w-full pt-6 pb-20">
+    <div
+        lang="fr" dir="ltr" className="space-y-12 max-w-5xl mx-auto w-full pt-6 pb-20">
       {/* Header */}
       <header className="space-y-3">
         <Link href="/maroc" className="text-sm text-[var(--text-3)] hover:text-[var(--primary)]">← Hub Vivre au Maroc</Link>
@@ -182,7 +183,7 @@ export default function ParcoursPage() {
             <span className="text-sm font-bold text-[var(--text-0)]">{pct}%</span>
           </div>
           <div className="h-2 mt-3 rounded-full overflow-hidden" style={{ background: "var(--bg-3)" }}>
-            <motion.div className="h-full rounded-full" style={{ background: "linear-gradient(90deg, #006233, #00875a)" }} animate={{ width: `${pct}%` }} transition={{ duration: 0.5 }} />
+            <motion.div className="h-full rounded-full" style={{ background: "linear-gradient(90deg, #006233, #00875a)" }} animate={{ width: `${pct}%` }} transition={{ duration: 0.3 }} />
           </div>
           {doneCount > 0 && (
             <button onClick={() => setDone(new Set())} className="text-xs text-[var(--text-3)] hover:text-[var(--error)] mt-3 inline-flex items-center gap-1">

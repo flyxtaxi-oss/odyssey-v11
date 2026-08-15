@@ -3,9 +3,8 @@
 // ==============================================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { collection, doc, setDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { optionalAuth } from "@/lib/auth-middleware";
+import { serverDb } from "@/lib/firestore-server";
+import { optionalAuth, enforceRateLimit } from "@/lib/auth-middleware";
 import { CreatePredictionSchema, validateInput } from "@/lib/validation";
 import { getSecurityHeaders } from "@/lib/security";
 import { SimulationEngine } from "@/lib/simulation-engine";
@@ -110,6 +109,11 @@ interface SimulationReport {
 }
 
 export async function POST(req: NextRequest) {
+  // Each call runs a multi-round agent simulation. Without a limit this is
+  // unmetered CPU for any anonymous caller.
+  const limited = await enforceRateLimit(req);
+  if (limited) return limited;
+
   try {
     const auth = await optionalAuth(req);
 
@@ -164,8 +168,8 @@ export async function POST(req: NextRequest) {
     };
 
     if (auth) {
-      const predictionRef = doc(collection(db, "predictions"));
-      await setDoc(predictionRef, {
+      const db = await serverDb();
+      await db.collection("predictions").doc().set({
         user_id: auth.uid,
         ...reportForStorage,
         created_at: new Date().toISOString(),

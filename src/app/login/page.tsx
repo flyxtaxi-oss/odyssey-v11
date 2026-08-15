@@ -66,7 +66,8 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center relative overflow-hidden" style={{ background: "var(--bg-0)" }}>
+        <div
+            lang="fr" dir="ltr" className="min-h-screen flex items-center justify-center relative overflow-hidden" style={{ background: "var(--bg-0)" }}>
             {/* Aurora background effects */}
             <div className="absolute top-[-30%] left-[-10%] w-[60%] h-[60%] rounded-full pointer-events-none"
                 style={{ background: "radial-gradient(ellipse, rgba(37,99,235,0.15) 0%, transparent 70%)", filter: "blur(80px)" }} />

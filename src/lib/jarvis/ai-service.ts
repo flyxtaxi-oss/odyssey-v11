@@ -1,5 +1,5 @@
 import { generateObject } from 'ai';
-import { google } from '@ai-sdk/google';
+import { withProviderFailover } from '@/lib/ai-providers';
 import { actionRegistry } from '@/lib/action-engine';
 import { getCachedResponse, setCachedResponse } from '@/lib/cache';
 import { z } from 'zod';
@@ -18,7 +18,7 @@ Règles pour parser:
 4. Paramètres de réservation : "restaurantName", "date" (YYYY-MM-DD), "time" (HH:MM), "partySize" (nombre).
 `;
 
-export async function generateActionPlanFromAI(query: string, _userId: string = "anonymous") {
+export async function generateActionPlanFromAI(query: string, _unusedUserId: string = "anonymous") {
     const toolsManifest = await actionRegistry.toManifest();
     const systemInstruction = SYSTEM_PROMPT.replace('{TOOLS}', JSON.stringify(toolsManifest, null, 2));
 
@@ -29,11 +29,22 @@ export async function generateActionPlanFromAI(query: string, _userId: string = 
         return cachedPlan;
     }
 
-    // 2. Call Proprietary Neural Engine via AI SDK
+    // 2. Génération du plan via la chaîne de fournisseurs partagée.
+    //
+    // Le modèle était codé en dur — `google('gemini-1.5-pro-latest')` — ce qui
+    // court-circuitait tout le système de failover : avec une clé Groq,
+    // Cerebras, Mistral, OpenRouter ou StepFun configurée, cette fonction
+    // échouait quand même faute de clé Google. C'est le cas EN PRODUCTION, où
+    // seul StepFun est configuré : /api/agent/plan y échoue systématiquement.
+    //
+    // Passer par withProviderFailover aligne cette route sur J.A.R.V.I.S. (qui
+    // avait déjà été corrigé) et fait remonter NoProviderError, que la route
+    // traduit en 503 actionnable au lieu d'un 500 trompeur.
     console.log("🌐 [JARVIS] Cache Miss - Calling Neural Engine...");
     try {
-        const { object } = await generateObject({
-            model: google('gemini-1.5-pro-latest'), // Using the latest Pro model
+        const { result } = await withProviderFailover("reasoning", (model) =>
+            generateObject({
+            model,
             system: systemInstruction,
             prompt: `Requête utilisateur : "${query}"\nDate actuelle: ${new Date().toISOString()}`,
             schema: z.object({
@@ -54,7 +65,9 @@ export async function generateActionPlanFromAI(query: string, _userId: string = 
                 undoable: z.boolean().describe("Vrai si on peut annuler l'action"),
             }),
             temperature: 0.1, // Low temperature for factual parsing
-        });
+            })
+        );
+        const { object } = result;
 
         // Add ID and timestamp
         const finalPlan = {
@@ -69,6 +82,10 @@ export async function generateActionPlanFromAI(query: string, _userId: string = 
         return finalPlan;
     } catch (e) {
         console.error("❌ [JARVIS] AI Plan Generation Error:", e);
+        // NoProviderError doit traverser intact : la route la traduit en 503
+        // « il manque une clé ». L'emballer dans un Error générique la ferait
+        // retomber en 500 « quelque chose est cassé ».
+        if (e instanceof Error && e.name === "NoProviderError") throw e;
         throw new Error("Impossible de générer un plan avec l'IA. " + (e instanceof Error ? e.message : ""));
     }
 }

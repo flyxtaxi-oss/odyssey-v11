@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useMotionValue, useTransform, animate } from "framer-motion";
+import { motion, useMotionValue, useTransform, animate, useReducedMotion } from "framer-motion";
 import {
   Brain,
   Globe,
@@ -18,28 +18,49 @@ import {
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTranslation } from "@/contexts/LocaleContext";
 import VisaTracker, { StoredVisa } from "@/components/VisaTracker";
 import { NotificationEngine } from "@/lib/notification-engine";
 import { MarketingLanding } from "@/components/MarketingLanding";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db, COLLECTIONS } from "@/lib/firebase";
+import { apiFetch } from "@/lib/api-client";
 
-/* ─── Animated Number Counter ─── */
+/* ─── Animated Number Counter ───
+   The count-up ran for 2 full seconds. For that whole time the figure on
+   screen was WRONG — the reader waits to learn a number the app already had.
+   On a dashboard about money and deadlines that is the opposite of useful.
+
+   0.7s is long enough to register as "this value just arrived" and short
+   enough that nobody waits for it. Anyone who asked the OS to reduce motion
+   gets the final value immediately, with no count at all. */
 function AnimatedCounter({ value, suffix = "" }: { value: number; suffix?: string }) {
+  const prefersReducedMotion = useReducedMotion();
   const count = useMotionValue(0);
   const rounded = useTransform(count, (v) => Math.round(v));
-  const [display, setDisplay] = useState(0);
+  const [display, setDisplay] = useState(value);
 
   useEffect(() => {
+    if (prefersReducedMotion) return;
     const controls = animate(count, value, {
-      duration: 2,
+      duration: 0.7,
       ease: [0.16, 1, 0.3, 1],
     });
     const unsub = rounded.on("change", (v) => setDisplay(v));
     return () => { controls.stop(); unsub(); };
-  }, [value, count, rounded]);
+  }, [value, count, rounded, prefersReducedMotion]);
 
-  return <span className="font-mono-tech">{display.toLocaleString()}{suffix}</span>;
+  // Reduced motion : la valeur finale est rendue directement, sans passer par
+  // l'état animé — pas de setState synchrone dans l'effet.
+  const shown = prefersReducedMotion ? value : display;
+
+  // `.num` gives tabular figures: every digit has the same width, so the value
+  // does not shift sideways while it counts and columns line up across cards.
+  return (
+    <span className="num">
+      {shown.toLocaleString()}{suffix}
+    </span>
+  );
 }
 
 /* ─── Types ─── */
@@ -77,97 +98,92 @@ const FALLBACK: DashboardData = {
 
 const engines = [
   {
-    label: "J.A.R.V.I.S.",
-    desc: "Intelligence personnelle core",
+    labelKey: "nav.jarvis",
+    descKey: "module.jarvis.desc",
     href: "/jarvis",
     icon: Brain,
     gradientClass: "module-card-blue",
-    tag: "SYS ACTIVE",
+    tag: "IA",
   },
   {
-    label: "Prédire le Futur",
-    desc: "Simulation multi-agents IA",
+    labelKey: "nav.predict",
+    descKey: "module.predict.desc",
     href: "/simulator/predict",
     icon: Sparkles,
     gradientClass: "module-card-purple",
     tag: "NEW",
   },
   {
-    label: "Simulateur de Vie",
-    desc: "Moteur prédictif multipays",
+    labelKey: "nav.simulator",
+    descKey: "module.simulator.desc",
     href: "/simulator",
     icon: Globe,
     gradientClass: "module-card-teal",
     tag: "6 PAYS",
   },
   {
-    label: "Visa Tracker",
-    desc: "Suivi intelligent des visas",
+    labelKey: "nav.visa",
+    descKey: "module.visa.desc",
     href: "/visa",
     icon: Shield,
     gradientClass: "module-card-teal",
-    tag: "LIVE",
+    tag: "SUIVI",
   },
   {
-    label: "Vivre au Maroc",
-    desc: "Coût, séjour, fiscalité, MRE & invest",
+    labelKey: "nav.maroc",
+    descKey: "module.maroc.desc",
     href: "/maroc",
     icon: MapPin,
     gradientClass: "module-card-rose",
     tag: "🇲🇦 NEW",
   },
   {
-    label: "Safe-Zone",
-    desc: "Réseau crypté modéré",
+    labelKey: "nav.safezone",
+    descKey: "module.safezone.desc",
     href: "/safezone",
     icon: Users,
     gradientClass: "module-card-rose",
-    tag: "156 NODES",
+    tag: "COMMUNAUTÉ",
   },
   {
-    label: "Language Lab",
-    desc: "Immersion linguistique & IA",
+    labelKey: "nav.language",
+    descKey: "module.language.desc",
     href: "/language",
     icon: MessageSquare,
     gradientClass: "module-card-blue",
-    tag: "A1 -> C2",
+    tag: "A1 → C2",
   },
   {
-    label: "Skill Accelerator",
-    desc: "Apprentissage & Missions XP",
+    labelKey: "nav.skills",
+    descKey: "module.skills.desc",
     href: "/skills",
     icon: Target,
     gradientClass: "module-card-teal",
-    tag: "MASTERY",
+    tag: "PROGRESSION",
   },
-];
+] as const;
 
 const scoreAxes = [
-  { label: "Clarté Mentale", value: 82, gradient: "linear-gradient(90deg, #2563EB, #7C3AED)" },
-  { label: "Santé Financière", value: 64, gradient: "linear-gradient(90deg, #0D9488, #10B981)" },
-  { label: "Mobilité Globale", value: 91, gradient: "linear-gradient(90deg, #4F46E5, #0EA5E9)" },
-  { label: "Réseau & Mentors", value: 73, gradient: "linear-gradient(90deg, #7C3AED, #D946EF)" },
-  { label: "Exécution & Action", value: 95, gradient: "linear-gradient(90deg, #F43F5E, #F97316)" },
-];
+  { labelKey: "score.mentalClarity", value: 82, gradient: "linear-gradient(90deg, #2563EB, #7C3AED)" },
+  { labelKey: "score.financialHealth", value: 64, gradient: "linear-gradient(90deg, #0D9488, #10B981)" },
+  { labelKey: "score.globalMobility", value: 91, gradient: "linear-gradient(90deg, #4F46E5, #0EA5E9)" },
+  { labelKey: "score.networkMentors", value: 73, gradient: "linear-gradient(90deg, #7C3AED, #D946EF)" },
+  { labelKey: "score.executionAction", value: 95, gradient: "linear-gradient(90deg, #F43F5E, #F97316)" },
+] as const;
 
 const stagger = {
   hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { staggerChildren: 0.08 } },
+  show: { opacity: 1, transition: { staggerChildren: 0.04 } },
 };
 
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] as const } },
-};
-
-const cardHover = {
-  rest: { scale: 1, y: 0 },
-  hover: { scale: 1.02, y: -6, transition: { type: "spring", stiffness: 400, damping: 20 } },
-  tap: { scale: 0.97, transition: { duration: 0.1 } },
+  show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.16, 1, 0.3, 1] as const } },
 };
 
 export default function DashboardPage() {
   const { user, loading } = useAuth();
+  const { t } = useTranslation();
   const [data, setData] = useState<DashboardData>(FALLBACK);
   const [isLive, setIsLive] = useState(false);
   const [topVisa, setTopVisa] = useState<StoredVisa | null>(null);
@@ -179,7 +195,7 @@ export default function DashboardPage() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/dashboard");
+        const res = await apiFetch("/api/dashboard");
         if (!res.ok) return;
         const json = await res.json();
         if (!cancelled) {
@@ -219,31 +235,44 @@ export default function DashboardPage() {
   }
 
   const stats = [
-    { label: "Odyssey Score", value: data.odyssey_score, unit: "PTS", icon: Zap, delta: data.odyssey_trend, period: "cette semaine" },
-    { label: "Clarté Mentale", value: data.mental_clarity, unit: "%", icon: Brain, delta: "+5", period: data.clarity_status },
-    { label: "Pays Simulés", value: data.countries_simulated, unit: "PAYS", icon: Globe, delta: "+2", period: data.countries_status },
-    { label: "Connexions", value: data.network_nodes, unit: "NODES", icon: Users, delta: "+3", period: data.network_status },
-  ];
+    { labelKey: "stats.score", value: data.odyssey_score, unit: t("stats.pts"), icon: Zap, delta: data.odyssey_trend, period: t("stats.thisWeek") },
+    { labelKey: "stats.mentalClarity", value: data.mental_clarity, unit: "%", icon: Brain, delta: "+5", period: data.clarity_status },
+    { labelKey: "stats.countriesSimulated", value: data.countries_simulated, unit: "", icon: Globe, delta: "+2", period: data.countries_status },
+    { labelKey: "stats.connections", value: data.network_nodes, unit: "", icon: Users, delta: "+3", period: data.network_status },
+  ] as const;
 
+  // Counts stay numeric and the noun comes from the dictionary, so the phrase
+  // reads correctly in every language rather than being a French sentence with
+  // a number substituted in.
   const timeline = [
-    { text: `${data.activity.conversations_today} conversations aujourd'hui`, time: "Temps réel", icon: Brain },
-    { text: `${data.activity.posts_this_week} posts cette semaine`, time: "Safe-Zone", icon: Users },
-    { text: `${data.activity.simulations_run} simulations lancées`, time: "Simulateur", icon: Globe },
-    { text: `${data.activity.badges_earned} badges obtenus`, time: "Progression", icon: Sparkles },
+    { text: `${data.activity.conversations_today} ${t("activity.conversationsToday")}`, time: t("common.realTime"), icon: Brain },
+    { text: `${data.activity.posts_this_week} ${t("activity.postsThisWeek")}`, time: t("nav.safezone"), icon: Users },
+    { text: `${data.activity.simulations_run} ${t("activity.simulationsRun")}`, time: t("nav.simulator"), icon: Globe },
+    { text: `${data.activity.badges_earned} ${t("activity.badgesEarned")}`, time: t("nav.skills"), icon: Sparkles },
   ];
   return (
     <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-16 max-w-7xl mx-auto w-full pt-6 pb-12">
       {/* ─── Hero ─── */}
       <motion.div variants={fadeUp} className="relative mt-2">
+        {/* "Système en ligne" was hardcoded — a green pulsing dot that stayed
+            green whether or not the dashboard had reached the API. isLive was
+            already being computed for exactly this and never rendered. */}
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-2 h-2 rounded-full bg-[var(--accent-emerald)] animate-pulse" />
-          <span className="text-sm font-semibold text-[var(--accent-emerald)]">Système en ligne</span>
+          <div
+            className={`w-2 h-2 rounded-full ${isLive ? "bg-[var(--accent-emerald)] animate-pulse" : "bg-[var(--text-3)]"}`}
+            aria-hidden="true"
+          />
+          <span className={`text-sm font-semibold ${isLive ? "text-[var(--accent-emerald)]" : "text-[var(--text-3)]"}`}>
+            {isLive ? t("dashboard.systemOnline") : t("dashboard.dataDemo")}
+          </span>
         </div>
-        <h1 className="text-[clamp(3rem,7vw,4.5rem)] font-extrabold tracking-tight leading-[1.05] text-[var(--text-0)]">
-          Bonjour, <span className="text-gradient-shimmer">{user?.displayName || user?.email?.split('@')[0] || 'Explorateur'}</span>.
+        <h1 className="t-display text-[var(--text-0)]">
+          {t("dashboard.greeting")} <span className="text-gradient-shimmer">{user?.displayName || user?.email?.split('@')[0] || 'Explorateur'}</span>.
         </h1>
-        <p className="text-lg text-[var(--text-3)] mt-4 max-w-xl leading-relaxed">
-          Tous vos modules sont synchronisés. Explorez vos données et prenez les meilleures décisions.
+        <p className="t-body-lg text-[var(--text-2)] mt-4 max-w-xl">
+          {isLive
+            ? t("dashboard.subtitle")
+            : t("dashboard.subtitleDemo")}
         </p>
       </motion.div>
 
@@ -251,10 +280,10 @@ export default function DashboardPage() {
       <motion.div variants={fadeUp} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {stats.map((s, i) => (
           <motion.div
-            key={s.label}
+            key={s.labelKey}
             variants={{
               hidden: { opacity: 0, y: 20 },
-              show: { opacity: 1, y: 0, transition: { delay: i * 0.1, duration: 0.5 } },
+              show: { opacity: 1, y: 0, transition: { delay: i * 0.04, duration: 0.3 } },
             }}
             initial="hidden"
             animate="show"
@@ -279,15 +308,15 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="flex items-baseline gap-3 mb-1">
-                  <span className="text-4xl font-extrabold tracking-tight text-[var(--text-0)]">
+                  <span className="t-metric text-[var(--text-0)]">
                     <AnimatedCounter value={s.value} />
                   </span>
-                  <span className="text-sm font-bold text-[var(--text-3)] uppercase">{s.unit}</span>
+                  <span className="t-label text-[var(--text-3)] uppercase">{s.unit}</span>
                 </div>
 
                 <div className="flex items-center justify-between mt-5 pt-4 border-t border-[var(--border-0)]">
-                  <p className="text-xs text-[var(--text-2)] font-semibold uppercase tracking-wider">{s.label}</p>
-                  <p className="text-xs text-[var(--text-3)]">{s.period}</p>
+                  <p className="t-label text-[var(--text-2)] uppercase">{t(s.labelKey)}</p>
+                  <p className="t-caption">{s.period}</p>
                 </div>
               </div>
             </div>
@@ -298,8 +327,10 @@ export default function DashboardPage() {
       {/* ─── Module Cards (Vibrant Gradient Backgrounds) ─── */}
       <motion.div variants={fadeUp}>
         <div className="flex items-center justify-between mb-8">
-          <h2 className="text-xl font-bold text-[var(--text-0)]">Modules Actifs</h2>
-          <span className="tag-cyber">6 Modules</span>
+          <h2 className="t-title text-[var(--text-0)]">{t("dashboard.activeModules")}</h2>
+          {/* Derived from the array that is actually rendered below — the
+              hardcoded "6" had drifted from the real count. */}
+          <span className="tag-cyber">{engines.length} {t("dashboard.modules")}</span>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {engines.map((e, i) => (
@@ -307,7 +338,7 @@ export default function DashboardPage() {
               <motion.div
                 variants={{
                   hidden: { opacity: 0, scale: 0.95 },
-                  show: { opacity: 1, scale: 1, transition: { delay: i * 0.08, duration: 0.4 } },
+                  show: { opacity: 1, scale: 1, transition: { delay: i * 0.08, duration: 0.25 } },
                 }}
                 initial="hidden"
                 animate="show"
@@ -334,10 +365,10 @@ export default function DashboardPage() {
 
                 <div className="relative z-10 mt-6">
                   <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-bold text-white">{e.label}</h3>
+                    <h3 className="text-lg font-bold text-white">{t(e.labelKey)}</h3>
                     <ArrowUpRight className="w-5 h-5 text-white/60 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 group-hover:-translate-y-1 transition-all duration-300" />
                   </div>
-                  <p className="text-sm text-white/70 mt-1">{e.desc}</p>
+                  <p className="text-sm text-white/70 mt-1">{t(e.descKey)}</p>
                 </div>
               </motion.div>
             </Link>
@@ -356,8 +387,8 @@ export default function DashboardPage() {
                   <Target className="w-7 h-7 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-[var(--text-0)]">Sys.Score</h2>
-                  <p className="text-sm text-[var(--text-3)] mt-0.5">Performance globale</p>
+                  <h2 className="t-title text-[var(--text-0)]">Sys.Score</h2>
+                  <p className="text-sm text-[var(--text-3)] mt-0.5">{t("dashboard.globalPerformance")}</p>
                 </div>
               </div>
               <div className="flex items-baseline gap-2">
@@ -371,20 +402,20 @@ export default function DashboardPage() {
             <div className="space-y-6">
               {scoreAxes.map((axis, i) => (
                 <motion.div
-                  key={axis.label}
+                  key={axis.labelKey}
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.5 + i * 0.1, duration: 0.5 }}
+                  transition={{ delay: 0.08 + i * 0.04, duration: 0.3 }}
                 >
                   <div className="flex justify-between mb-2.5">
-                    <span className="text-sm font-semibold text-[var(--text-2)]">{axis.label}</span>
-                    <span className="text-sm font-bold text-[var(--text-0)]">{axis.value}%</span>
+                    <span className="t-body text-[var(--text-2)]">{t(axis.labelKey)}</span>
+                    <span className="t-label num text-[var(--text-0)]">{axis.value}%</span>
                   </div>
                   <div className="h-2.5 bg-[var(--bg-3)] rounded-full overflow-hidden">
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${axis.value}%` }}
-                      transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.3 + i * 0.1 }}
+                      transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.08 + i * 0.1 }}
                       className="h-full rounded-full"
                       style={{ background: axis.gradient }}
                     />
@@ -411,7 +442,7 @@ export default function DashboardPage() {
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-[var(--text-0)]">Suivi de visa</p>
-                  <p className="text-xs text-[var(--text-3)]">Ajoute ton séjour pour suivre l&apos;expiration →</p>
+                  <p className="t-caption">Ajoute ton séjour pour suivre l&apos;expiration →</p>
                 </div>
               </Link>
             )}
@@ -422,7 +453,7 @@ export default function DashboardPage() {
                   <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(124, 58, 237, 0.15)' }}>
                     <Activity className="w-5 h-5 text-[var(--accent-magenta)]" />
                   </div>
-                  <h2 className="text-xl font-bold text-[var(--text-0)]">Activité</h2>
+                  <h2 className="t-title text-[var(--text-0)]">{t("dashboard.activity")}</h2>
                 </div>
                 <button className="text-xs font-bold tracking-wider px-4 py-2 rounded-xl bg-[var(--bg-3)] text-[var(--text-1)] hover:text-[var(--text-0)] hover:bg-[var(--bg-4)] transition-colors border border-[var(--border-0)]">
                   TOUT VOIR
@@ -435,7 +466,7 @@ export default function DashboardPage() {
                     key={i}
                     initial={{ opacity: 0, x: -15 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.5 + i * 0.12, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                    transition={{ delay: 0.12 + i * 0.12, duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
                     className="group"
                   >
                     <div className="flex items-start gap-4 cursor-pointer p-3 rounded-xl hover:bg-[var(--bg-3)] transition-colors -mx-3">

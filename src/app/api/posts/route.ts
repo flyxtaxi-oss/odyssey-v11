@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { collection, doc, setDoc, getDocs, query, orderBy, limit } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { authenticateRequest, optionalAuth } from "@/lib/auth-middleware";
+import { serverDb } from "@/lib/firestore-server";
+import { authenticateRequest, optionalAuth, enforceRateLimit } from "@/lib/auth-middleware";
 import { CreatePostSchema, validateInput } from "@/lib/validation";
 import { checkPromptInjection, moderateContent } from "@/lib/security";
 import { getSecurityHeaders } from "@/lib/security";
@@ -19,13 +18,12 @@ export async function GET(req: NextRequest) {
     const user = await optionalAuth(req);
 
     // Build query
-    const q = query(
-      collection(db, "posts"),
-      orderBy("created_at", "desc"),
-      limit(50)
-    );
-
-    const snapshot = await getDocs(q);
+    const db = await serverDb();
+    const snapshot = await db
+      .collection("posts")
+      .orderBy("created_at", "desc")
+      .limit(50)
+      .get();
     const posts = snapshot.docs.map((doc) => {
       const data = doc.data();
       return {
@@ -67,6 +65,9 @@ export async function GET(req: NextRequest) {
  * POST /api/posts — Create new post (authenticated + validated)
  */
 export async function POST(req: NextRequest) {
+    const limited = await enforceRateLimit(req);
+    if (limited) return limited;
+
   try {
     // Authenticate request
     const auth = await authenticateRequest(req);
@@ -117,7 +118,8 @@ export async function POST(req: NextRequest) {
     const is_verified = moderation.is_verified;
 
     // Create new post
-    const postRef = doc(collection(db, "posts"));
+    const db = await serverDb();
+    const postRef = db.collection("posts").doc();
     const newPost = {
       id: postRef.id,
       author_id: auth.user.uid,
@@ -133,7 +135,7 @@ export async function POST(req: NextRequest) {
       updated_at: new Date().toISOString(),
     };
 
-    await setDoc(postRef, newPost);
+    await postRef.set(newPost);
 
     return NextResponse.json(
       {

@@ -4,9 +4,10 @@ import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Brain, Sparkles, Users, Target, TrendingUp, Clock,
-    ArrowRight, Loader2, Share2, Download, Star, Globe,
-    Building2, Briefcase, Wallet, Heart, Languages, Network
+    ArrowRight, Share2, Download, Star, Globe,
+    Building2, Briefcase, Wallet, Heart, Network
 } from "lucide-react";
+import { apiFetch } from "@/lib/api-client";
 
 type ScenarioType = "relocation" | "career" | "investment" | "lifestyle" | "social";
 
@@ -108,10 +109,9 @@ export default function PredictPage() {
         setStep("simulating");
 
         try {
-            const res = await fetch("/api/simulation/predict", {
+            const res = await apiFetch("/api/simulation/predict", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
+                                body: JSON.stringify({
                     query,
                     user_profile: profile,
                     scenario,
@@ -157,21 +157,25 @@ export default function PredictPage() {
             label: getScoreLabel(result.success_score),
         };
         
-        const shareText = `🎯 Ma prédiction Odyssey: ${shareData.score}/100 (${shareData.label})
-🌍 Destination: ${destinations.find(d => d.id === destination)?.name || destination}
-📅 Horizon: ${timeHorizon} mois
-🔮 Scenario: ${scenarios.find(s => s.id === scenario)?.label}
+        // Shared text leaves the app, where no disclaimer follows it — so the
+        // framing has to travel with the number. "Simulation" and "scénario",
+        // not "prédiction" and "🔮".
+        const shareText = `📊 Ma simulation Odyssey : ${shareData.score}/100 (${shareData.label})
+🌍 Destination : ${destinations.find(d => d.id === destination)?.name || destination}
+📅 Horizon : ${timeHorizon} mois
+🎯 Scénario : ${scenarios.find(s => s.id === scenario)?.label}
 
-Teste aussi: https://odyssey-ai.app/simulator/predict`;
-        
+Score indicatif issu d'un modèle de simulation, pas une prévision.
+Teste le tien : https://odyssey-ai.app/simulator/predict`;
+
         if (navigator.share) {
             try {
                 await navigator.share({
-                    title: 'Ma Prédiction Odyssey',
+                    title: 'Ma simulation Odyssey',
                     text: shareText,
                     url: window.location.origin + '/simulator/predict',
                 });
-            } catch (e) {
+            } catch (_e) {
                 // User cancelled or error
             }
         } else {
@@ -188,11 +192,16 @@ Teste aussi: https://odyssey-ai.app/simulator/predict`;
     const exportReport = () => {
         if (!result) return;
         
+        // The exported file is the artefact people keep and forward, so it
+        // carries the caveat in its header rather than only on screen.
         const reportText = `
-🎯 RAPPORT DE PRÉDICTION - ODYSSEY.AI
+📊 RAPPORT DE SIMULATION - ODYSSEY
+═══════════════════════════════════════
+Modèle de simulation à partir des données saisies. Outil de comparaison
+entre scénarios — ni une prévision, ni un conseil juridique ou fiscal.
 ═══════════════════════════════════════
 
-📊 SCORE DE SUCCÈS: ${result.success_score}/100 (${getScoreLabel(result.success_score)})
+📊 SCORE DE SIMULATION: ${result.success_score}/100 (${getScoreLabel(result.success_score)})
 
 🌍 PARAMÈTRES:
 - Destination: ${destinations.find(d => d.id === destination)?.name || destination}
@@ -227,7 +236,8 @@ Généré par Odyssey.ai - Life Operating System
     };
 
     return (
-        <div className="min-h-screen relative overflow-hidden">
+        <div
+            lang="fr" dir="ltr" className="min-h-screen relative overflow-hidden">
             <div className="absolute top-1/4 -left-1/4 w-[1000px] h-[600px] bg-gradient-to-r from-[rgba(143,245,255,0.08)] via-[rgba(172,137,255,0.06)] to-transparent blur-3xl pointer-events-none" />
             
             <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-20 relative z-10">
@@ -496,7 +506,16 @@ Généré par Odyssey.ai - Life Operating System
                                         <span className="text-4xl text-[var(--text-2)]">/100</span>
                                     </div>
                                     <p className="text-xl text-[var(--text-1)] font-medium">{getScoreLabel(result.success_score)}</p>
-                                    
+
+                                    {/* Every other data surface in the app (/maroc, /visa) states what its
+                                        numbers are. This one showed a shareable "73/100" on someone's life
+                                        plan with nothing to say it is a model, not a forecast. */}
+                                    <p className="text-xs text-[var(--text-3)] mt-6 max-w-md mx-auto leading-relaxed">
+                                        Score produit par un modèle de simulation à partir des informations que tu as
+                                        saisies. C&apos;est un outil de comparaison entre scénarios, pas une prévision :
+                                        il ne prédit pas ton avenir et ne remplace pas un conseil juridique ou fiscal.
+                                    </p>
+
                                     <div className="flex justify-center gap-6 mt-8">
                                         <button onClick={sharePrediction} className="btn-stitch flex items-center gap-2">
                                             <Share2 className="w-4 h-4" />

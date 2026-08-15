@@ -5,6 +5,8 @@ import { motion, AnimatePresence, useSpring, useTransform, useMotionValue } from
 import {
     Globe, DollarSign, Home, Briefcase, Sun, Plane, Zap, Check, Loader2, Save, TrendingUp, Activity
 } from "lucide-react";
+import { apiFetch } from "@/lib/api-client";
+import { useTranslation } from "@/contexts/LocaleContext";
 
 /* ─── 3D Tilt Card ─── */
 function TiltWrap({ children, className }: { children: React.ReactNode; className?: string }) {
@@ -50,7 +52,7 @@ type Country = {
 
 const countries: Country[] = [
     { name: "France", flag: "🇫🇷", salary: 3800, tax: 30, cost: 1800, visa: "—", climate: "Tempéré", score: 65, color: "var(--secondary)" },
-    { name: "Portugal", flag: "🇵🇹", salary: 3200, tax: 20, cost: 1100, visa: "NHR / D7", climate: "☀️ Sommeil", score: 84, color: "var(--primary)" },
+    { name: "Portugal", flag: "🇵🇹", salary: 3200, tax: 20, cost: 1100, visa: "NHR / D7", climate: "☀️ Soleil", score: 84, color: "var(--primary)" },
     { name: "Dubaï", flag: "🇦🇪", salary: 6500, tax: 0, cost: 2800, visa: "Golden Visa", climate: "🔥 Désert", score: 78, color: "var(--tertiary)" },
     { name: "Maroc", flag: "🇲🇦", salary: 2500, tax: 15, cost: 700, visa: "Libre", climate: "☀️ Soleil", score: 81, color: "var(--error)" },
     { name: "Canada", flag: "🇨🇦", salary: 5200, tax: 28, cost: 2200, visa: "Express Entry", climate: "❄️ Froid", score: 72, color: "var(--primary-dim)" },
@@ -61,13 +63,14 @@ const calcNet = (c: Country) => c.salary - (c.salary * c.tax) / 100 - c.cost;
 const calcYearly = (c: Country, y: number) => calcNet(c) * 12 * y;
 
 const rows = [
-    { icon: Briefcase, label: "Salaire Brut", key: "salary" as const, fmt: (v: number) => `${v.toLocaleString()}€/m` },
-    { icon: DollarSign, label: "Impôts", key: "tax" as const, fmt: (v: number) => `${v}%` },
-    { icon: Home, label: "Coût de la vie", key: "cost" as const, fmt: (v: number) => `${v.toLocaleString()}€/m` },
-    { icon: Sun, label: "Climat", key: "climate" as const, fmt: (v: string) => v },
-];
+    { icon: Briefcase, labelKey: "sim.grossSalary", key: "salary" as const, fmt: (v: number) => `${v.toLocaleString()}€/m` },
+    { icon: DollarSign, labelKey: "sim.tax", key: "tax" as const, fmt: (v: number) => `${v}%` },
+    { icon: Home, labelKey: "sim.costOfLiving", key: "cost" as const, fmt: (v: number) => `${v.toLocaleString()}€/m` },
+    { icon: Sun, labelKey: "sim.climate", key: "climate" as const, fmt: (v: string) => v },
+] as const;
 
 export default function SimulatorPage() {
+    const { t } = useTranslation();
     const [compareIdx, setCompareIdx] = useState(1);
     const [isSaving, setIsSaving] = useState(false);
     const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "error">("idle");
@@ -81,10 +84,9 @@ export default function SimulatorPage() {
         setIsSaving(true);
         setSaveStatus("idle");
         try {
-            const res = await fetch("/api/simulator", {
+            const res = await apiFetch("/api/simulator", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
+                                body: JSON.stringify({
                     destination: compare.name, score: compare.score, visa: compare.visa,
                     salary: compare.salary, tax_rate: compare.tax, cost_of_living: compare.cost,
                     climate: compare.climate, savings: calcNet(compare),
@@ -111,13 +113,13 @@ export default function SimulatorPage() {
                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--primary)] opacity-75"></span>
                                 <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--primary)]"></span>
                             </span>
-                            MOTEUR_DE_DESTINÉE_V10_ACTIVE
+                            {t("sim.tagline")}
                         </div>
                         <h1 className="text-5xl md:text-7xl font-bold tracking-tighter text-[var(--text-0)] mb-4 leading-tight font-display">
-                            Simulateur de <br/><span className="text-gradient-primary">Trajectoire</span>
+                            {t("sim.title")}
                         </h1>
                         <p className="text-lg text-[var(--text-2)] max-w-2xl font-light mb-8 font-body">
-                            Analyse de variables multi-dimensionnelles propulsée par notre Moteur Quantique. Identifie ton environnement orbital optimal.
+                            {t("sim.subtitle")}
                         </p>
 
                         <button
@@ -126,9 +128,9 @@ export default function SimulatorPage() {
                             className="btn-stitch group relative inline-flex items-center gap-2 disabled:opacity-50"
                         >
                             <span className="relative flex items-center gap-2">
-                                {isSaving ? <><Loader2 className="w-4 h-4 animate-spin" /> CALCUL...</> :
-                                saveStatus === "saved" ? <><Check className="w-4 h-4" /> SIMULATION ENREGISTRÉE</> :
-                                <><Save className="w-4 h-4" /> SAUVEGARDER LE VECTEUR</>}
+                                {isSaving ? <><Loader2 className="w-4 h-4 animate-spin" /> {t("sim.saving")}</> :
+                                saveStatus === "saved" ? <><Check className="w-4 h-4" /> {t("sim.saved")}</> :
+                                <><Save className="w-4 h-4" /> {t("sim.save")}</>}
                             </span>
                         </button>
                     </div>
@@ -136,7 +138,7 @@ export default function SimulatorPage() {
                     {/* ─── Country Selector ─── */}
                     <div>
                         <p className="text-sm font-medium text-[var(--text-3)] mb-4 uppercase tracking-widest flex items-center gap-2 font-label">
-                            <Activity className="w-4 h-4" /> Sélection du Noeud de Destination
+                            <Activity className="w-4 h-4" /> {t("sim.chooseDestination")}
                         </p>
                         <div className="flex flex-wrap gap-3">
                             {countries.slice(1).map((c, i) => {
@@ -178,21 +180,21 @@ export default function SimulatorPage() {
                                     <div className="text-4xl">{current.flag}</div>
                                     <div className="flex-1">
                                         <h3 className="text-xl font-bold text-[var(--text-2)] tracking-wide font-display">{current.name}</h3>
-                                        <span className="text-xs text-[var(--text-3)] font-mono-tech uppercase tracking-widest mt-1">Noeud d&apos;Origine</span>
+                                        <span className="text-xs text-[var(--text-3)] t-label uppercase mt-1">{t("sim.currentSituation")}</span>
                                     </div>
-                                    <span className="text-xs font-bold font-mono-tech tracking-widest uppercase bg-[var(--error)]/10 text-[var(--error)] px-3 py-1.5 rounded-lg border border-[var(--error)]/20">ORIGINE</span>
+                                    <span className="text-xs font-bold font-mono-tech tracking-widest uppercase bg-[var(--error)]/10 text-[var(--error)] px-3 py-1.5 rounded-lg border border-[var(--error)]/20">{t("sim.origin")}</span>
                                 </div>
 
                                 <div className="space-y-5 mt-6">
                                     {rows.map((r) => (
-                                        <div key={r.label} className="flex items-center justify-between pb-4 border-b border-[var(--border-0)] last:border-0 last:pb-0">
+                                        <div key={r.labelKey} className="flex items-center justify-between gap-4 pb-4 border-b border-[var(--border-0)] last:border-0 last:pb-0">
                                             <div className="flex items-center gap-3">
                                                 <div className="p-2 rounded-xl bg-[var(--bg-3)] border border-[var(--border-0)]">
                                                     <r.icon className="w-4 h-4 text-[var(--text-3)]" />
                                                 </div>
-                                                <span className="text-sm text-[var(--text-2)] uppercase font-semibold tracking-wider font-label">{r.label}</span>
+                                                <span className="text-sm text-[var(--text-2)] uppercase font-semibold tracking-wider font-label">{t(r.labelKey)}</span>
                                             </div>
-                                            <span className="text-base font-bold text-[var(--text-0)] font-mono-tech">
+                                            <span className="text-base font-bold text-[var(--text-0)] font-mono-tech whitespace-nowrap">
                                                 {r.fmt(current[r.key] as never)}
                                             </span>
                                         </div>
@@ -201,7 +203,7 @@ export default function SimulatorPage() {
                             </div>
 
                             <div className="pt-8 mt-8 border-t border-[var(--border-0)]">
-                                <span className="text-xs text-[var(--text-3)] font-mono-tech uppercase tracking-widest font-label">Capacité d&apos;Épargne MENSUELLE</span>
+                                <span className="text-xs text-[var(--text-3)] t-label uppercase font-label">Capacité d&apos;Épargne MENSUELLE</span>
                                 <p className="text-4xl md:text-5xl font-extrabold text-[var(--text-0)] tracking-tighter mt-2 font-mono-tech drop-shadow-sm">
                                     {calcNet(current).toLocaleString()}€
                                 </p>
@@ -215,7 +217,7 @@ export default function SimulatorPage() {
                                 initial={{ opacity: 0, scale: 0.95, filter: "blur(10px)" }}
                                 animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
                                 exit={{ opacity: 0, scale: 0.95, filter: "blur(10px)" }}
-                                transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                                transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
                             >
                                 <TiltWrap>
                                     <div className="absolute top-0 right-0 p-8 opacity-[0.06]">
@@ -245,15 +247,15 @@ export default function SimulatorPage() {
                                             if(r.key === "tax") diff = curr - comp;
 
                                             return (
-                                                <div key={r.label} className="flex items-center justify-between pb-4 border-b border-[var(--border-0)] last:border-0 last:pb-0">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="p-2 rounded-xl bg-[var(--bg-3)] border border-[var(--border-0)]">
+                                                <div key={r.labelKey} className="flex items-center justify-between gap-4 pb-4 border-b border-[var(--border-0)] last:border-0 last:pb-0">
+                                                    <div className="flex items-center gap-3 min-w-0">
+                                                        <div className="p-2 rounded-xl bg-[var(--bg-3)] border border-[var(--border-0)] shrink-0">
                                                             <r.icon className="w-4 h-4 text-[var(--primary)]" />
                                                         </div>
-                                                        <span className="text-sm text-[var(--text-1)] uppercase font-semibold tracking-wider font-label">{r.label}</span>
+                                                        <span className="text-sm text-[var(--text-1)] uppercase font-semibold tracking-wider font-label">{t(r.labelKey)}</span>
                                                     </div>
-                                                    <div className="flex items-center gap-4">
-                                                        <span className="text-base font-bold text-[var(--text-0)] font-mono-tech">
+                                                    <div className="flex items-center gap-4 shrink-0">
+                                                        <span className="text-base font-bold text-[var(--text-0)] font-mono-tech whitespace-nowrap">
                                                             {r.fmt(compare[r.key] as never)}
                                                         </span>
                                                         {r.key !== "climate" && (comp - curr) !== 0 && (
@@ -268,7 +270,7 @@ export default function SimulatorPage() {
                                     </div>
 
                                     <div className="pt-8 mt-auto border-t border-[var(--border-0)] relative z-10">
-                                        <span className="text-xs font-mono-tech uppercase tracking-widest text-[var(--primary)] font-label">Projection d&apos;Épargne MENSUELLE</span>
+                                        <span className="text-xs t-label uppercase text-[var(--primary)] font-label">Projection d&apos;Épargne MENSUELLE</span>
                                         <p className="text-4xl md:text-5xl font-extrabold tracking-tighter mt-2 text-gradient-primary font-mono-tech drop-shadow-sm">
                                             {calcNet(compare).toLocaleString()}€
                                         </p>
@@ -288,7 +290,7 @@ export default function SimulatorPage() {
                                     <TrendingUp className="w-6 h-6 text-[var(--primary)]" />
                                 </div>
                                 <div>
-                                    <h3 className="text-2xl font-bold text-[var(--text-0)] tracking-tight font-display">Macro-Impact Financier</h3>
+                                    <h3 className="text-2xl font-bold text-[var(--text-0)] tracking-tight font-display">{t("sim.financialImpact")}</h3>
                                     <p className="text-sm text-[var(--text-2)] font-mono-tech mt-1">
                                         Delta Trajectoire : <span className="text-[var(--secondary)]">{current.name}</span> → <span className="text-[var(--primary)]">{compare.name}</span>
                                     </p>
@@ -298,14 +300,14 @@ export default function SimulatorPage() {
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
                             {[
-                                { label: "Delta Mensuel", value: diffNet, sub: "Surplus Cash-flow net" },
-                                { label: "Progression 36 Mois", value: diff3Y, sub: "Capital supplémentaire accumulé" },
-                                { label: "Horizon 60 Mois", value: diff5Y, sub: "Trajectoire long terme ajustée" },
+                                { label: t("sim.monthlyDelta"), value: diffNet, sub: t("sim.monthlyDeltaDesc") },
+                                { label: t("sim.over36Months"), value: diff3Y, sub: t("sim.over36MonthsDesc") },
+                                { label: t("sim.over60Months"), value: diff5Y, sub: t("sim.over60MonthsDesc") },
                             ].map((m) => (
                                 <div key={m.label}
                                     className="p-6 rounded-[16px] relative overflow-hidden group transition-all duration-300 bg-[var(--bg-1)] border border-[var(--border-0)] hover:border-[var(--border-2)]"
                                 >
-                                    <p className="text-xs text-[var(--text-3)] font-mono-tech uppercase tracking-widest mb-3 font-label">{m.label}</p>
+                                    <p className="text-xs text-[var(--text-3)] t-label uppercase mb-3 font-label">{m.label}</p>
                                     <p className={`text-4xl font-extrabold tracking-tighter font-mono-tech ${m.value >= 0 ? "text-[var(--success)]" : "text-[var(--error)]"}`}>
                                         {m.value >= 0 ? "+" : ""}{m.value.toLocaleString()}€
                                     </p>

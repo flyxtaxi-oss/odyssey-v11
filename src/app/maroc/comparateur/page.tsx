@@ -10,7 +10,7 @@ import { rankDestinations, marocRank } from "@/lib/expat-destinations";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] as const } },
+  show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] as const } },
 };
 
 function scoreColor(v: number): string {
@@ -28,7 +28,8 @@ export default function ComparateurPage() {
 
   return (
     <motion.main
-      variants={{ show: { transition: { staggerChildren: 0.06 } } }}
+        lang="fr" dir="ltr"
+      variants={{ show: { transition: { staggerChildren: 0.03 } } }}
       initial="hidden"
       animate="show"
       className="max-w-5xl mx-auto px-4 py-10 space-y-10"
@@ -103,7 +104,7 @@ export default function ComparateurPage() {
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${d.score}%` }}
-                      transition={{ duration: 0.6, ease: "easeOut" }}
+                      transition={{ duration: 0.35, ease: "easeOut" }}
                       className="h-full rounded-full"
                       style={{ background: scoreColor(d.score) }}
                     />

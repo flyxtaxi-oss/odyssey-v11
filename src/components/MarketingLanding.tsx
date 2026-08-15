@@ -9,11 +9,37 @@ import {
   Sparkles,
   ArrowRight,
   Check,
-  TrendingDown,
-  Zap,
   Users,
-  Star,
-} from "lucide-react";
+  } from "lucide-react";
+import { VISA_COUNTRIES } from "@/lib/visa-countries";
+import { DESTINATIONS } from "@/lib/expat-destinations";
+import { PLANS, type Plan } from "@/lib/entitlements";
+
+/**
+ * Formate un prix en centimes pour l'affichage.
+ *
+ * Les prix affichés dérivent de PLANS, qui est aussi ce que Stripe facturera.
+ * Écrits en dur dans le JSX, ils divergeaient du montant réellement prélevé au
+ * premier changement de tarif — et un prix annoncé différent du prix débité est
+ * une pratique commerciale trompeuse, pas une coquille.
+ */
+function formatPrice(cents: number | null): string {
+  if (cents === null) return "—";
+  const euros = cents / 100;
+  return Number.isInteger(euros) ? `${euros}\u202f€` : euros.toFixed(2).replace(".", ",") + "\u202f€";
+}
+
+/** Remise annuelle réelle, calculée — jamais annoncée à la main. */
+function yearlyDiscount(plan: Plan): string {
+  if (plan.priceYearlyCents === null || plan.priceMonthlyCents === 0) return "";
+  const full = plan.priceMonthlyCents * 12;
+  return `-${Math.round((1 - plan.priceYearlyCents / full) * 100)}%`;
+}
+
+// Counts are derived from the data itself so the landing can never again
+// advertise numbers the product doesn't back up.
+const VISA_COUNTRY_COUNT = VISA_COUNTRIES.length;
+const DESTINATION_COUNT = DESTINATIONS.length;
 
 /**
  * MarketingLanding — Conversion-optimized landing for non-authenticated visitors.
@@ -25,7 +51,13 @@ import {
  */
 export function MarketingLanding() {
   return (
-    <div className="space-y-24 py-8">
+    // This page is written in French and is not translated yet. Declaring
+    // lang/dir on it is not a workaround — it is what the spec asks for: text
+    // in a language other than the document's must carry its own. Without it,
+    // Unicode's bidi algorithm applies the document's RTL paragraph direction
+    // to neutral characters, so "50 guides visa" renders as "guides visa 50"
+    // and sentence-final periods jump to the wrong side for Arabic readers.
+    <div lang="fr" dir="ltr" className="space-y-24 py-8">
       {/* ─── HERO ─── */}
       <section className="text-center space-y-6 max-w-3xl mx-auto">
         <motion.div
@@ -35,42 +67,43 @@ export function MarketingLanding() {
           style={{ background: "var(--bg-2)", border: "1px solid var(--border-2)" }}
         >
           <Sparkles size={12} className="text-[var(--primary)]" />
-          <span>Le premier Life OS IA pour expats francophones</span>
+          <span>Guides visa, fiscalité et coût de la vie — en français</span>
         </motion.div>
 
         <motion.h1
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
+          transition={{ delay: 0.04 }}
           className="text-5xl md:text-6xl font-extrabold tracking-tight text-[var(--text-0)] leading-[1.1]"
         >
-          Quitte la France.
+          Changer de pays,
           <br />
           <span
             style={{
-              background: "linear-gradient(135deg, #2563EB, #7C3AED, #EC4899)",
+              background: "linear-gradient(135deg, var(--primary), var(--secondary))",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
             }}
           >
-            Économise €8 400/an.
+            décidé sur des chiffres.
           </span>
         </motion.h1>
 
         <motion.p
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
+          transition={{ delay: 0.06 }}
           className="text-xl text-[var(--text-2)] leading-relaxed max-w-2xl mx-auto"
         >
-          Compare 50+ pays. Pilote tes visas. Coache-toi avec <strong className="text-[var(--text-0)]">J.A.R.V.I.S.</strong>,
-          l&apos;IA qui te dit où vivre, comment partir, et combien tu vas vraiment économiser.
+          {VISA_COUNTRY_COUNT} guides visa, {DESTINATION_COUNT} destinations comparées sur la fiscalité et le coût
+          de la vie réels. Et <strong className="text-[var(--text-0)]">J.A.R.V.I.S.</strong>, l&apos;IA qui répond
+          en français à tes questions.
         </motion.p>
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
+          transition={{ delay: 0.08 }}
           className="flex flex-col sm:flex-row gap-3 justify-center pt-2"
         >
           <Link
@@ -78,7 +111,7 @@ export function MarketingLanding() {
             className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl text-white font-bold text-base hover:scale-[1.02] transition-transform"
             style={{ background: "linear-gradient(135deg, #2563EB, #7C3AED)" }}
           >
-            Lance ta simulation gratuite
+            Comparer mes destinations
             <ArrowRight size={18} />
           </Link>
           <Link
@@ -96,19 +129,26 @@ export function MarketingLanding() {
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
+          transition={{ delay: 0.12 }}
           className="text-xs text-[var(--text-3)] pt-3"
         >
-          ✓ Aucune CB requise • ✓ 3 simulations gratuites • ✓ Conseil IA en français
+          ✓ Gratuit • ✓ Sans carte bancaire • ✓ Données sourcées et datées
         </motion.p>
       </section>
 
-      {/* ─── SOCIAL PROOF (numbers) ─── */}
+      {/* ─── CHIFFRES ───
+           Chaque valeur ici doit être vérifiable dans le produit.
+           Les anciennes métriques annonçaient "50+ pays comparés" (le
+           comparateur en couvre 8, ce sont les guides visa qui sont 52) et
+           "4.8/5 satisfaction (127 avis)" — invention pure, sans aucun
+           utilisateur. De la fausse preuve sociale est un risque juridique
+           et se retourne contre la crédibilité d'un produit qui parle
+           d'immigration et de fiscalité. */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
-        <Metric value="50+" label="pays comparés" />
-        <Metric value="2min" label="pour ta première sim" />
-        <Metric value="€8.4k" label="économie moyenne / an" />
-        <Metric value="4.8/5" label="satisfaction (127 avis)" />
+        <Metric value={`${VISA_COUNTRY_COUNT}`} label="guides visa détaillés" />
+        <Metric value={`${DESTINATION_COUNT}`} label="destinations comparées" />
+        <Metric value="2 min" label="pour ta première simulation" />
+        <Metric value="0 €" label="pour commencer" />
       </section>
 
       {/* ─── 4 PILIERS ─── */}
@@ -220,12 +260,12 @@ export function MarketingLanding() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <PricingCard
-            name="Free"
-            price="0€"
+            name={PLANS.free.label}
+            price={formatPrice(PLANS.free.priceMonthlyCents)}
             tagline="Pour tester"
             features={[
-              "3 simulations / mois",
-              "JARVIS limité (1 persona)",
+              `${PLANS.free.quotas.simulations} simulations / mois`,
+              `JARVIS limité (1 persona) — ${PLANS.free.quotas.jarvis_messages} messages / mois`,
               "Visa Tracker basique",
               "Accès lecture Safe-Zone",
             ]}
@@ -234,37 +274,58 @@ export function MarketingLanding() {
           />
           <PricingCard
             highlight
-            name="Pro"
-            price="19€"
+            name={PLANS.pro.label}
+            price={formatPrice(PLANS.pro.priceMonthlyCents)}
             period="/mois"
             tagline="Le plus populaire"
             features={[
               "Simulations illimitées",
-              "JARVIS complet (5 personas)",
+              `JARVIS complet (5 personas) — ${PLANS.pro.quotas.jarvis_messages} messages / mois`,
               "Prédictions GraphRAG",
               "Safe-Zone vérifiée",
               "Multi-pays dashboard",
-              "Annuel : 159€/an (-30%)",
+              `Annuel : ${formatPrice(PLANS.pro.priceYearlyCents)}/an (${yearlyDiscount(PLANS.pro)})`,
             ]}
             cta="Passer Pro"
             ctaLink="/login?plan=pro"
           />
           <PricingCard
-            name="Pro Max"
-            price="49€"
+            name={PLANS.pro_max.label}
+            price={formatPrice(PLANS.pro_max.priceMonthlyCents)}
             period="/mois"
             tagline="Pour les sérieux"
             features={[
               "Tout Pro +",
-              "API prioritaire",
-              "Consult trimestriel 1-on-1",
+              "Messages JARVIS illimités",
+              "Modèle prioritaire (réponses plus rapides)",
               "Projections fiscales avancées",
-              "Annuel : 399€/an",
+              `Annuel : ${formatPrice(PLANS.pro_max.priceYearlyCents)}/an`,
             ]}
             cta="Passer Pro Max"
             ctaLink="/login?plan=promax"
           />
         </div>
+
+        {/* Le palier Pro Max annonçait « Consult trimestriel 1-on-1 ». C'est
+            retiré, et ce n'est pas un détail de formulation : vendre du conseil
+            personnalisé en fiscalité ou en immigration relève de professions
+            réglementées (loi du 31 décembre 1971 art. 54 pour le conseil
+            juridique ; monopole des experts-comptables pour le conseil fiscal).
+            Le facturer dans un abonnement sans être avocat, expert-comptable ou
+            CGP expose à des sanctions pénales — un risque disproportionné pour
+            une ligne de bullet point. Il est remplacé par une valeur réelle et
+            déjà implémentée : le modèle prioritaire.
+
+            Si tu veux vraiment vendre de l'accompagnement humain, la voie
+            praticable est de t'associer à un professionnel habilité et de
+            présenter la prestation comme la sienne, pas comme la tienne. */}
+        <p className="text-center text-xs text-[var(--text-3)] max-w-2xl mx-auto">
+          Odyssey est un outil d&apos;information et de comparaison. Il ne fournit ni conseil
+          juridique, ni conseil fiscal personnalisé.{" "}
+          <Link href="/legal/cgu" className="underline hover:text-[var(--text-2)]">
+            Conditions d&apos;utilisation
+          </Link>
+        </p>
       </section>
 
       {/* ─── FINAL CTA ─── */}

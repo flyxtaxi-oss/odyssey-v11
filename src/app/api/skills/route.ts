@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { collection, doc, setDoc, getDoc, getDocs, query, where } from "firebase/firestore";
-import { db, COLLECTIONS } from "@/lib/firebase";
-import { authenticateRequest, optionalAuth } from "@/lib/auth-middleware";
+import { COLLECTIONS } from "@/lib/firebase";
+import { serverDb } from "@/lib/firestore-server";
+import { authenticateRequest, enforceRateLimit } from "@/lib/auth-middleware";
 import { SkillActionSchema, validateInput } from "@/lib/validation";
 import { getSecurityHeaders } from "@/lib/security";
 
@@ -13,29 +13,35 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
     try {
-        const user = await optionalAuth(req);
-        const { searchParams } = new URL(req.url);
-        const paramUserId = searchParams.get("userId");
-        const targetUserId = user?.uid || paramUserId;
-
-        if (!targetUserId) {
-            return NextResponse.json({ error: "User ID is required" }, { status: 400, headers: getSecurityHeaders() });
+        // The caller's identity comes from the verified token and nowhere else.
+        // A `?userId=` query param used to be honoured when unauthenticated,
+        // which let anyone read anyone else's tracks (IDOR).
+        const auth = await authenticateRequest(req);
+        if (!auth.success) {
+            return NextResponse.json({ error: auth.error }, { status: auth.status, headers: getSecurityHeaders() });
         }
+        const targetUserId = auth.user.uid;
 
-        const tracksQuery = query(
-            collection(db, COLLECTIONS.SKILL_TRACKS),
-            where("user_id", "==", targetUserId)
-        );
-        const tracksSnap = await getDocs(tracksQuery);
+        const db = await serverDb();
+        const tracksSnap = await db
+            .collection(COLLECTIONS.SKILL_TRACKS)
+            .where("user_id", "==", targetUserId)
+            .get();
         const tracks = tracksSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
         let missionsData: Array<Record<string, unknown>> = [];
         if (tracks.length > 0) {
-            const trackIds = tracks.map((t: Record<string, unknown>) => t.id);
-            const missionsSnap = await getDocs(collection(db, COLLECTIONS.SKILL_MISSIONS));
+            const trackIds = new Set(tracks.map((t: Record<string, unknown>) => t.id));
+            // Scope the read to this user server-side. Fetching the whole
+            // collection and filtering in memory leaked other users' missions
+            // and grew linearly with total app usage.
+            const missionsSnap = await db
+                .collection(COLLECTIONS.SKILL_MISSIONS)
+                .where("user_id", "==", targetUserId)
+                .get();
             missionsData = missionsSnap.docs
                 .map((d) => ({ id: d.id, ...d.data() }))
-                .filter((m: Record<string, unknown>) => trackIds.includes(m.skill_track_id));
+                .filter((m: Record<string, unknown>) => trackIds.has(m.skill_track_id));
         }
 
         return NextResponse.json({ tracks, missions: missionsData, source: "firebase" }, { headers: getSecurityHeaders() });
@@ -46,6 +52,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+    const limited = await enforceRateLimit(req);
+    if (limited) return limited;
+
     try {
         const auth = await authenticateRequest(req);
         if (!auth.success) {
@@ -68,9 +77,10 @@ export async function POST(req: NextRequest) {
         }
 
         const data = validation.data;
+        const db = await serverDb();
 
         if (data.action === "create_track") {
-            const trackRef = doc(collection(db, COLLECTIONS.SKILL_TRACKS));
+            const trackRef = db.collection(COLLECTIONS.SKILL_TRACKS).doc();
             const trackData = {
                 id: trackRef.id,
                 user_id: auth.user.uid,
@@ -82,7 +92,7 @@ export async function POST(req: NextRequest) {
                 updated_at: new Date().toISOString(),
             };
 
-            await setDoc(trackRef, trackData);
+            await trackRef.set(trackData);
 
             const initialMissions = [
                 {
@@ -108,8 +118,7 @@ export async function POST(req: NextRequest) {
             ];
 
             for (const mission of initialMissions) {
-                const missionRef = doc(collection(db, COLLECTIONS.SKILL_MISSIONS));
-                await setDoc(missionRef, mission);
+                await db.collection(COLLECTIONS.SKILL_MISSIONS).doc().set(mission);
             }
 
             return NextResponse.json(
@@ -119,19 +128,30 @@ export async function POST(req: NextRequest) {
         }
 
         if (data.action === "update_mission") {
-            const missionRef = doc(db, COLLECTIONS.SKILL_MISSIONS, data.mission_id);
-            await setDoc(missionRef, { is_completed: data.is_completed }, { merge: true });
+            const missionRef = db.collection(COLLECTIONS.SKILL_MISSIONS).doc(data.mission_id);
+
+            // Verify ownership BEFORE writing. Previously any authenticated
+            // user could flip any mission by guessing its id (IDOR on write).
+            const existingSnap = await missionRef.get();
+            if (!existingSnap.exists) {
+                return NextResponse.json({ error: "Mission introuvable" }, { status: 404, headers: getSecurityHeaders() });
+            }
+            if (existingSnap.data()?.user_id !== auth.user.uid) {
+                return NextResponse.json({ error: "Accès refusé" }, { status: 403, headers: getSecurityHeaders() });
+            }
+
+            await missionRef.set({ is_completed: data.is_completed }, { merge: true });
 
             if (data.is_completed) {
-                const missionSnap = await getDoc(missionRef);
-                const mission = missionSnap.data();
+                const mission = existingSnap.data();
 
                 if (mission?.skill_track_id) {
-                    const trackRef = doc(db, COLLECTIONS.SKILL_TRACKS, mission.skill_track_id);
-                    const trackSnap = await getDoc(trackRef);
+                    const trackRef = db.collection(COLLECTIONS.SKILL_TRACKS).doc(mission.skill_track_id);
+                    const trackSnap = await trackRef.get();
                     const track = trackSnap.data();
 
-                    if (track) {
+                    // Defence in depth: the track must belong to the caller too.
+                    if (track && track.user_id === auth.user.uid) {
                         let newProgress = (track.progress_percentage || 0) + ((mission.xp_reward || 0) / 10);
                         let newLevel = track.current_level || "Novice";
 
@@ -144,7 +164,7 @@ export async function POST(req: NextRequest) {
                             }
                         }
 
-                        await setDoc(trackRef, {
+                        await trackRef.set({
                             progress_percentage: newProgress,
                             current_level: newLevel,
                             updated_at: new Date().toISOString(),

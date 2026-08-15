@@ -31,16 +31,41 @@ import {
   QueryConstraint,
 } from "firebase/firestore";
 
-// NEXT_PUBLIC_* keys are bundled in client code — fallback values are safe
-// (they only become a risk if Firebase Auth authorized domains are mis-configured)
+// NEXT_PUBLIC_* keys are bundled into client code by design — they are not
+// secrets. Access is controlled by Firebase Auth's authorized domains and by
+// firestore.rules, not by hiding these values. Because they are public, the
+// real jarvis-53b7c config is a safe hardcoded fallback.
+//
+// The original `process.env.X || "<real>"` was subtly broken: `||` only falls
+// back on an EMPTY value, so when .env.local held the placeholder
+// "your-project-id" the placeholder won and the SDK pointed at a project that
+// does not exist ("Could not reach Cloud Firestore backend") while the code
+// looked configured. `envOrFallback` treats a placeholder as if it were
+// absent, so a half-filled .env can never silently break the data layer again.
+const REAL_CONFIG = {
+  apiKey: "AIzaSyDXch5wQxmCzJJ8MttAly0fD_Ej09iUu8o",
+  authDomain: "jarvis-53b7c.firebaseapp.com",
+  projectId: "jarvis-53b7c",
+  storageBucket: "jarvis-53b7c.firebasestorage.app",
+  messagingSenderId: "586497768527",
+  appId: "1:586497768527:web:88846b1e5320fc5021be3a",
+  measurementId: "G-3WGS3MWDH0",
+} as const;
+
+const PLACEHOLDER = /^your-|^xxx|^1:1234|^G-XXXX|^123456$|^\s*$/i;
+
+function envOrFallback(value: string | undefined, fallback: string): string {
+  return value && !PLACEHOLDER.test(value) ? value : fallback;
+}
+
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyDXch5wQxmCzJJ8MttAly0fD_Ej09iUu8o",
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "jarvis-53b7c.firebaseapp.com",
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "jarvis-53b7c",
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "jarvis-53b7c.firebasestorage.app",
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "586497768527",
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:586497768527:web:88846b1e5320fc5021be3a",
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || "G-3WGS3MWDH0",
+  apiKey: envOrFallback(process.env.NEXT_PUBLIC_FIREBASE_API_KEY, REAL_CONFIG.apiKey),
+  authDomain: envOrFallback(process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN, REAL_CONFIG.authDomain),
+  projectId: envOrFallback(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID, REAL_CONFIG.projectId),
+  storageBucket: envOrFallback(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET, REAL_CONFIG.storageBucket),
+  messagingSenderId: envOrFallback(process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID, REAL_CONFIG.messagingSenderId),
+  appId: envOrFallback(process.env.NEXT_PUBLIC_FIREBASE_APP_ID, REAL_CONFIG.appId),
+  measurementId: envOrFallback(process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID, REAL_CONFIG.measurementId),
 };
 
 let app: FirebaseApp;

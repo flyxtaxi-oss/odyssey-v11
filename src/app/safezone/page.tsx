@@ -16,8 +16,8 @@ import {
     Bookmark,
     MoreHorizontal,
     TrendingUp,
-    Loader2,
-} from "lucide-react";
+    } from "lucide-react";
+import { apiFetch } from "@/lib/api-client";
 
 type Post = {
     id: string;
@@ -93,7 +93,7 @@ export default function SafeZonePage() {
     // Fetch posts from API on mount
     const fetchPosts = useCallback(async () => {
         try {
-            const res = await fetch("/api/posts");
+            const res = await apiFetch("/api/posts");
             if (!res.ok) return;
             const data = await res.json();
             if (data.posts?.length) {
@@ -111,10 +111,9 @@ export default function SafeZonePage() {
         setModResult(null);
 
         try {
-            const res = await fetch("/api/posts", {
+            const res = await apiFetch("/api/posts", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ content: newPost }),
+                                body: JSON.stringify({ content: newPost }),
             });
             const data = await res.json();
 
@@ -142,35 +141,72 @@ export default function SafeZonePage() {
     };
 
     const toggleLike = (id: string) => {
-        setLikedPosts((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+        setLikedPosts((prev) => {
+            const n = new Set(prev);
+            if (n.has(id)) n.delete(id); else n.add(id);
+            return n;
+        });
     };
 
     const toggleSave = (id: string) => {
-        setSavedPosts((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+        setSavedPosts((prev) => {
+            const n = new Set(prev);
+            if (n.has(id)) n.delete(id); else n.add(id);
+            return n;
+        });
     };
 
     return (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-2xl mx-auto space-y-8">
+        <motion.div
+            lang="fr" dir="ltr" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-2xl mx-auto space-y-8">
             {/* ─── Header ─── */}
             <div className="relative mt-2 text-center md:text-left">
                 <div className="inline-flex items-center gap-2 mb-4">
                     <Shield className="w-4 h-4 text-[var(--text-2)]" />
-                    <span className="section-label tracking-widest text-[var(--text-2)] font-mono-tech uppercase">Réseau_Neural_Sécurisé_V9</span>
+                    <span className="section-label tracking-widest text-[var(--text-2)] font-mono-tech uppercase">Communauté modérée</span>
                 </div>
                 <h1 className="text-[clamp(2.5rem,5vw,3.5rem)] font-extrabold tracking-tight leading-[1] text-[var(--text-0)] font-display">
                     La <span className="text-gradient-primary">Safe-Zone</span>
                 </h1>
-                <p className="text-[14px] text-[var(--text-3)] font-mono-tech uppercase tracking-widest mt-4 max-w-lg leading-relaxed md:mx-0 mx-auto">
-                    Flux de données vérifiées. Protocole anti-toxicité modéré.
+                <p className="t-body-lg text-[var(--text-2)] mt-4 max-w-lg md:mx-0 mx-auto">
+                    Retours d&apos;expérience entre expatriés. Contenu modéré.
                 </p>
+
+                {/* When the API returns nothing, the feed falls back to sample
+                    posts — invented testimonials, attributed to invented people,
+                    making specific claims about visa timelines. Presenting those
+                    as a real community would be a lie the user cannot detect. */}
+                {!isLive && (
+                    <div className="mt-5 inline-flex items-start gap-2.5 text-left px-4 py-3 rounded-xl bg-[var(--bg-2)] border border-[var(--border-1)] max-w-lg">
+                        <AlertTriangle className="w-4 h-4 text-[var(--accent-amber)] shrink-0 mt-0.5" />
+                        <p className="text-[12px] text-[var(--text-2)] leading-relaxed">
+                            <strong className="text-[var(--text-1)]">Exemples de démonstration.</strong>{" "}
+                            Ces publications illustrent le format du fil : elles ne proviennent pas
+                            de vrais membres et leurs informations ne doivent pas être utilisées
+                            telles quelles.
+                        </p>
+                    </div>
+                )}
             </div>
 
-            {/* ─── System Stats ─── */}
+            {/* ─── Stats ───
+                Counted from the feed actually on screen. The previous values
+                ("312 nœuds actifs", "1.4k opérateurs", "89 Tx/S") were fixed
+                strings dressed up as live telemetry — fake traction, on a
+                product with no users yet. */}
             <div className="glass-panel py-4 px-6 flex flex-wrap items-center justify-between gap-4 bg-[var(--bg-1)] border border-[var(--border-1)] shadow-none">
                 {[
-                    { label: "Nœuds Actifs", value: "312", icon: MessageCircle },
-                    { label: "Opérateurs", value: "1.4k", icon: Users },
-                    { label: "Tx/S", value: "89", icon: TrendingUp },
+                    { label: "Publications", value: String(posts.length), icon: MessageCircle },
+                    {
+                        label: "Contributeurs",
+                        value: String(new Set(posts.map((p) => p.author)).size),
+                        icon: Users,
+                    },
+                    {
+                        label: "Réactions",
+                        value: String(posts.reduce((sum, p) => sum + p.likes, 0)),
+                        icon: TrendingUp,
+                    },
                 ].map((s) => (
                     <div key={s.label} className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-[var(--bg-2)] border border-[var(--border-1)]">
@@ -196,7 +232,7 @@ export default function SafeZonePage() {
                         <textarea
                             value={newPost}
                             onChange={(e) => setNewPost(e.target.value)}
-                            placeholder=">> INITIALISER TRANSMISSION..."
+                            placeholder="Partage ton expérience…"
                             rows={3}
                             className="w-full bg-transparent text-[14px] outline-none resize-none font-mono-tech text-[var(--text-0)] placeholder:text-[var(--text-3)] leading-relaxed"
                         />
@@ -206,7 +242,7 @@ export default function SafeZonePage() {
                 <div className="flex items-center justify-between mt-4 pl-14">
                     <div className="flex items-center gap-2 px-2 py-1 rounded border border-[var(--border-1)] bg-[var(--bg-2)]">
                         <Shield className="w-3 h-3 text-[var(--text-2)]" />
-                        <span className="text-[9px] text-[var(--text-2)] font-mono-tech uppercase tracking-widest">IA MOD_V9 ACTIS</span>
+                        <span className="text-[9px] text-[var(--text-2)] t-label uppercase">Modération automatique</span>
                     </div>
                     <motion.button
                         whileHover={{ scale: 1.02 }}
@@ -217,7 +253,7 @@ export default function SafeZonePage() {
                     >
                         {isPosting ? <span className="animate-pulse">CRYPTAGE...</span> : (
                             <>
-                                TRANSMETTRE <Send className="w-3.5 h-3.5 ml-1" />
+                                Publier <Send className="w-3.5 h-3.5 ml-1" />
                             </>
                         )}
                     </motion.button>
@@ -229,7 +265,7 @@ export default function SafeZonePage() {
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: "auto" }}
                             exit={{ opacity: 0, height: 0 }}
-                            className="mt-4 flex items-center gap-2 text-[11px] font-mono-tech uppercase tracking-widest px-4 py-3 rounded-xl ml-14 bg-[var(--bg-2)] border border-[var(--border-2)] text-[var(--text-1)]"
+                            className="mt-4 flex items-center gap-2 text-[11px] t-label uppercase px-4 py-3 rounded-xl ml-14 bg-[var(--bg-2)] border border-[var(--border-2)] text-[var(--text-1)]"
                         >
                             {modResult === "success" ? <Sparkles className="w-4 h-4 text-[var(--primary)]" /> : <AlertTriangle className="w-4 h-4 text-[var(--error)]" />}
                             {modResult === "success" ? "TRANSMISSION SÉCURISÉE CONFIRMÉE" : "ALERTE: FRÉQUENCE TOXIQUE DÉTECTÉE. ANNULATION."}
@@ -247,7 +283,7 @@ export default function SafeZonePage() {
                             initial={{ opacity: 0, y: 20, scale: 0.98 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             whileHover={{ y: -2, scale: 1.01 }}
-                            transition={{ delay: i * 0.05, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                            transition={{ delay: i * 0.05, duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
                             className="glass-panel p-6 space-y-4 group/post bg-[var(--bg-0)] border border-[var(--border-1)] shadow-none hover:bg-[var(--bg-1)] transition-colors duration-300"
                         >
                             {/* Author Info */}
@@ -272,11 +308,11 @@ export default function SafeZonePage() {
                                     </div>
                                     <div className="flex items-center gap-4 mt-1">
                                         {post.country && (
-                                            <span className="flex items-center gap-1.5 text-[10px] font-mono-tech uppercase tracking-widest text-[var(--text-2)]">
+                                            <span className="flex items-center gap-1.5 text-[10px] t-label uppercase text-[var(--text-2)]">
                                                 <MapPin className="w-3 h-3 opacity-70" /> {post.flag} {post.country}
                                             </span>
                                         )}
-                                        <span className="flex items-center gap-1.5 text-[10px] font-mono-tech uppercase tracking-widest text-[var(--text-3)]">
+                                        <span className="flex items-center gap-1.5 text-[10px] t-label uppercase text-[var(--text-3)]">
                                             <Clock className="w-3 h-3 opacity-70" /> {post.time}
                                         </span>
                                     </div>

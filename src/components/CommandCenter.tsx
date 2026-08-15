@@ -4,6 +4,10 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Brain, Send, X, Terminal, Loader2, CheckCircle2, WifiOff } from "lucide-react";
 import { useOfflineDB, offlineDB } from "@/lib/offline-db";
+import { apiFetch } from "@/lib/api-client";
+
+/** Event any component can dispatch on `window` to open the command palette. */
+export const OPEN_COMMAND_CENTER = "odyssey:open-command-center";
 
 export default function CommandCenter() {
   const [isOpen, setIsOpen] = useState(false);
@@ -25,6 +29,16 @@ export default function CommandCenter() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  // The sidebar's search field opens this panel too. It dispatches an event
+  // rather than importing state, so the two components stay decoupled — and
+  // so the search field stops being a div that looks clickable and does
+  // nothing, which is what it was.
+  useEffect(() => {
+    const open = () => setIsOpen(true);
+    window.addEventListener(OPEN_COMMAND_CENTER, open);
+    return () => window.removeEventListener(OPEN_COMMAND_CENTER, open);
   }, []);
 
   // Auto-focus sur l'input quand on l'ouvre
@@ -49,10 +63,9 @@ export default function CommandCenter() {
     setResponse(null);
 
     try {
-      const res = await fetch("/api/agent", {
+      const res = await apiFetch("/api/agent", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: query })
+                body: JSON.stringify({ prompt: query })
       });
       
       const data = await res.json();
@@ -70,7 +83,7 @@ export default function CommandCenter() {
         setResponse(data.reply || "J'ai bien noté votre demande.");
         setQuery("");
       }
-    } catch (error) {
+    } catch (_error) {
       setStatus("idle");
       setResponse("❌ Impossible de joindre les serveurs J.A.R.V.I.S.");
     }

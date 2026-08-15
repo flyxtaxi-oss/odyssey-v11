@@ -115,8 +115,12 @@ export type SkillActionInput = z.infer<typeof SkillActionSchema>;
 
 // ─── JARVIS Chat Schemas ─────────────────────────────────────────────────────
 
+// Le rôle `system` est réservé au serveur : les instructions système sont
+// construites exclusivement côté serveur (fullSystemPrompt). Un client qui
+// pouvait envoyer role:"system" injectait ses propres instructions dans le
+// modèle — l'historique client est non fiable par définition.
 export const ChatMessageSchema = z.object({
-  role: z.enum(["user", "assistant", "system"]),
+  role: z.enum(["user", "assistant"]),
   content: z.string().min(1).max(10000),
 });
 

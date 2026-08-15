@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { collection, doc, setDoc, query, where, orderBy, limit, getDocs } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { authenticateRequest, optionalAuth } from "@/lib/auth-middleware";
+import { serverDb } from "@/lib/firestore-server";
+import { authenticateRequest, optionalAuth, enforceRateLimit } from "@/lib/auth-middleware";
 import { CreateSimulationSchema, validateInput } from "@/lib/validation";
 import { getSecurityHeaders } from "@/lib/security";
+import { consumeQuota } from "@/lib/entitlements-server";
 
 // ==============================================================================
 // SIMULATOR API — Save/Load Simulations (SECURED)
@@ -20,14 +20,13 @@ export async function GET(req: NextRequest) {
             );
         }
 
-        const q = query(
-            collection(db, "simulations"),
-            where("user_id", "==", user.uid),
-            orderBy("created_at", "desc"),
-            limit(20)
-        );
-
-        const snapshot = await getDocs(q);
+        const db = await serverDb();
+        const snapshot = await db
+            .collection("simulations")
+            .where("user_id", "==", user.uid)
+            .orderBy("created_at", "desc")
+            .limit(20)
+            .get();
         const simulations = snapshot.docs.map((d) => {
             const data = d.data();
             return {
@@ -55,6 +54,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+    const limited = await enforceRateLimit(req);
+    if (limited) return limited;
+
     try {
         const auth = await authenticateRequest(req);
         if (!auth.success) {
@@ -76,8 +78,33 @@ export async function POST(req: NextRequest) {
             );
         }
 
+        // Quota d'abonnement — appliqué APRÈS la validation, AVANT l'écriture.
+        //
+        // L'ordre n'est pas anodin : consommer une unité sur une requête qui va
+        // de toute façon échouer en validation ferait payer à l'utilisateur une
+        // simulation qu'il n'a jamais obtenue. Et l'appliquer après l'écriture
+        // ne protégerait plus rien.
+        //
+        // `consumeQuota` est transactionnel : dix requêtes simultanées ne
+        // peuvent pas lire le même compteur et passer toutes les dix.
+        const quota = await consumeQuota(auth.user.uid, "simulations");
+        if (!quota.allowed) {
+            return NextResponse.json(
+                {
+                    error: "quota_exceeded",
+                    message: `Tu as utilisé tes ${quota.limit} simulations incluses ce mois-ci.`,
+                    quota: { used: quota.used, limit: quota.limit },
+                    upgradeUrl: "/#pricing",
+                },
+                // 402 plutôt que 403 : le client doit proposer l'abonnement,
+                // pas afficher « accès refusé ».
+                { status: 402, headers: getSecurityHeaders() }
+            );
+        }
+
         const data = validation.data;
-        const simulationRef = doc(collection(db, "simulations"));
+        const db = await serverDb();
+        const simulationRef = db.collection("simulations").doc();
         const simulation = {
             id: simulationRef.id,
             user_id: auth.user.uid,
@@ -85,10 +112,15 @@ export async function POST(req: NextRequest) {
             created_at: new Date().toISOString(),
         };
 
-        await setDoc(simulationRef, simulation);
+        await simulationRef.set(simulation);
 
         return NextResponse.json(
-            { simulation, status: "saved", message: "Simulation sauvegardée avec succès!" },
+            {
+                simulation,
+                status: "saved",
+                message: "Simulation sauvegardée avec succès!",
+                quota: { used: quota.used, limit: quota.limit, remaining: quota.remaining, plan: quota.plan },
+            },
             { status: 201, headers: getSecurityHeaders() }
         );
     } catch (error) {

@@ -48,7 +48,7 @@ const ICONS: Record<string, LucideIcon> = {
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] as const } },
+  show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] as const } },
 };
 
 export default function MarocPage() {
@@ -69,9 +69,10 @@ export default function MarocPage() {
 
   return (
     <motion.div
+        lang="fr" dir="ltr"
       initial="hidden"
       animate="show"
-      variants={{ hidden: {}, show: { transition: { staggerChildren: 0.08 } } }}
+      variants={{ hidden: {}, show: { transition: { staggerChildren: 0.04 } } }}
       className="space-y-16 max-w-6xl mx-auto w-full pt-6 pb-16"
     >
       {/* ─── HERO ─── */}

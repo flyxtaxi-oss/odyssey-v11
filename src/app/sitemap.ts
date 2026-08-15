@@ -25,6 +25,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: '/language', priority: 0.7, changeFrequency: 'weekly' },
     { path: '/login', priority: 0.5, changeFrequency: 'monthly' },
     { path: '/settings', priority: 0.3, changeFrequency: 'monthly' },
+    // Les pages légales sont listées volontairement. Elles ne visent aucun
+    // trafic, mais Apple et Google exigent une URL de politique de
+    // confidentialité publiquement atteignable avant d'accepter une
+    // soumission de store — et une URL absente du sitemap est indexée plus
+    // tard, voire pas du tout.
+    { path: '/legal/mentions', priority: 0.2, changeFrequency: 'yearly' },
+    { path: '/legal/cgu', priority: 0.2, changeFrequency: 'yearly' },
+    { path: '/legal/confidentialite', priority: 0.2, changeFrequency: 'yearly' },
   ]
 
   const staticEntries = staticRoutes.map((r) => ({

@@ -1,21 +1,15 @@
 import { streamText, tool, stepCountIs } from "ai";
 import { z } from "zod";
-import { google } from "@ai-sdk/google";
-import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-
-const stepfun = createOpenAICompatible({
-    name: "stepfun",
-    baseURL: "https://api.stepfun.com/v1",
-    apiKey: process.env.STEPFUN_API_KEY ?? "",
-});
+import {
+    selectModel as selectProviderModel,
+    type Capability,
+} from "@/lib/ai-providers";
 import {
     getCachedResponse,
     setCachedResponse,
     checkRateLimit,
     getMemoryContext,
     updateMemory,
-    selectModel,
-    getCacheStats,
 } from "@/lib/ai-engine";
 import { checkPromptInjection, logAuditEntry, getSecurityHeaders } from "@/lib/security";
 import { detectLanguage, getJarvisLocaleInstruction } from "@/lib/i18n";
@@ -24,6 +18,9 @@ import { getMarocKnowledge, estimateMonthlyCost, getCitySlugs } from "@/lib/maro
 import { getSereniteKnowledge } from "@/lib/maroc-serenite";
 import { getVeilleKnowledge } from "@/lib/maroc-veille";
 import { getDestinationsKnowledge } from "@/lib/expat-destinations";
+import { VISA_COUNTRIES } from "@/lib/visa-countries";
+import { FREE_PERSONA } from "@/lib/entitlements";
+import { consumeQuota, userHasFeature } from "@/lib/entitlements-server";
 
 // ==============================================================================
 // J.A.R.V.I.S. — AI Chat Endpoint (Streaming)
@@ -60,8 +57,24 @@ const SYSTEM_PROMPT = `Tu es J.A.R.V.I.S., l'Intelligence Artificielle core d'Od
 7. Utilise des metrics/chiffres quand pertinent.
 8. Termine TOUJOURS par une action concrète ou une question qui fait avancer.
 9. Maximum 1-2 emojis par réponse, jamais en début de phrase.
-10. Ne mentionne JAMAIS que tu es une IA ou un modèle de langage.
+10. Si on te demande ce que tu es, réponds franchement que tu es une IA. Ne le prétends
+    jamais autrement. (Règlement européen sur l'IA, art. 50 : un système conversationnel
+    doit être identifiable comme tel. Ce n'est pas une préférence de ton, c'est une
+    obligation — et un utilisateur qui croit parler à un conseiller humain accorde à tes
+    réponses un poids qu'elles ne méritent pas sur des décisions d'expatriation.)
 11. Adapte la longueur : question simple → réponse courte, question complexe → analyse structurée.
+
+## Véracité — la règle qui prime sur toutes les autres
+Cette application conseille sur des visas et de la fiscalité. Un chiffre inventé peut coûter
+à quelqu'un un refus de séjour ou un redressement fiscal.
+- N'invente JAMAIS un taux d'imposition, un montant de revenu minimum, un délai administratif
+  ou un prix. Si un outil ne te renvoie pas la donnée, dis que tu ne l'as pas.
+- Quand un outil te renvoie une donnée, cite-la telle quelle, avec sa source et sa date si
+  elles sont fournies. N'arrondis pas, n'extrapole pas à un pays voisin.
+- « Je ne sais pas, voici où vérifier » est une bonne réponse. Une réponse assurée et fausse
+  est la pire.
+- Rappelle que tes réponses sont indicatives et ne remplacent pas un professionnel qualifié
+  dès qu'on te demande une décision engageante (départ, démission, déclaration fiscale).
 
 ## Modules disponibles
 - **Simulateur de Trajectoire** — comparaison multipays (fiscalité, coût de vie, visas, projections financières)
@@ -80,18 +93,69 @@ const jarvisTools = {
             cuisine: z.string().describe("Le type de cuisine (ex: japonais, local, healthy)"),
         }),
         execute: async ({ city, cuisine }) => {
-            // Logique future : Appel réel à l'API LaFourchette / Yelp / Google Places
-            return { success: true, action: "booking_simulated", details: `J'ai trouvé 3 excellentes options pour manger ${cuisine} à ${city}. Je viens d'ajouter les liens à ton espace de travail.` };
+            // Cet outil annonçait « J'ai trouvé 3 excellentes options […] Je viens
+            // d'ajouter les liens à ton espace de travail » — trois affirmations
+            // fausses : aucune recherche n'était faite, aucun lien n'existait, et
+            // aucun espace de travail ne recevait quoi que ce soit. L'utilisateur
+            // repartait en croyant avoir une liste qui l'attendait quelque part.
+            //
+            // Tant qu'aucun fournisseur (Google Places / TheFork) n'est branché, le
+            // seul retour honnête est l'absence de capacité. Le modèle le reformule
+            // à l'utilisateur au lieu d'inventer un résultat.
+            return {
+                success: false,
+                unavailable: true,
+                reason: "no_provider_connected",
+                message: `Odyssey n'est pas encore connecté à un service de réservation. Je ne peux pas chercher de ${cuisine} à ${city} ni réserver quoi que ce soit — dis-le clairement à l'utilisateur et propose-lui de chercher lui-même.`,
+            };
         },
     }),
     checkVisaRules: tool({
-        description: "Vérifier les conditions d'expatriation et de visas nomades pour un pays cible.",
+        description:
+            "Consulter la fiche visa Odyssey d'un pays (nom du visa, durée, revenu minimum exigé, capitale, indice de coût de la vie). Ne couvre que les pays présents dans la base Odyssey.",
         inputSchema: z.object({
-            country: z.string().describe("Le pays cible (ex: Portugal, UAE, Thaïlande)"),
+            country: z.string().describe("Le pays cible (ex: Portugal, Émirats, Thaïlande)"),
         }),
         execute: async ({ country }) => {
-            // Logique future : Appel au CMS interne Odyssey / Base de données Visas
-            return { success: true, info: `Le ${country} propose d'excellentes options fiscales en 2026. Je lance l'analyse approfondie.` };
+            // Cet outil retournait « Le {pays} propose d'excellentes options fiscales
+            // en 2026 » pour N'IMPORTE QUELLE chaîne — y compris un pays qui n'existe
+            // pas, ou un pays sans aucun visa nomade. Le modèle relayait ensuite cette
+            // affirmation avec l'autorité d'un résultat d'outil, ce qui est exactement
+            // le mode d'erreur le plus dangereux : une invention qui a l'air sourcée.
+            //
+            // On interroge maintenant la vraie base (VISA_COUNTRIES) et on répond
+            // « pas de données » quand il n'y en a pas. Le silence est une réponse.
+            const needle = country
+                .toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "");
+            const match = VISA_COUNTRIES.find((c) => {
+                const name = c.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                return c.slug === needle || name === needle || name.includes(needle) || needle.includes(name);
+            });
+
+            if (!match) {
+                return {
+                    success: false,
+                    found: false,
+                    message: `Aucune fiche Odyssey pour « ${country} ». Dis-le à l'utilisateur : n'invente ni visa, ni taux, ni seuil de revenu pour ce pays. Oriente-le vers le consulat concerné.`,
+                };
+            }
+
+            return {
+                success: true,
+                found: true,
+                country: match.name,
+                visaName: match.visaName,
+                maxStayDays: match.maxStayDays,
+                minIncomeEurPerMonth: match.minIncome,
+                capitalCity: match.capitalCity,
+                costOfLivingIndexParis100: match.costOfLivingIndex,
+                highlights: match.highlights,
+                guideUrl: `/visa/${match.slug}`,
+                disclaimer:
+                    "Fiche indicative Odyssey, non contractuelle. Les conditions de visa changent sans préavis : renvoie systématiquement l'utilisateur vers le consulat du pays pour confirmation.",
+            };
         },
     }),
     analyzeMaroc: tool({
@@ -180,34 +244,117 @@ export async function POST(req: Request) {
             }
         }
 
-        // Scope anonymous callers by client IP so they never share a rate-limit
-        // bucket (one anon could otherwise drain the quota for everyone) nor, worse,
-        // each other's conversational memory (cross-user data leak).
+        // Une identité de compte et une clé de quota ne sont pas la même chose, et
+        // les confondre a produit une fuite de données réelle.
+        //
+        // Le code précédent posait `userId = "anon:" + ip` puis se servait de cette
+        // chaîne à la fois comme clé de rate limiting ET comme clé de la mémoire
+        // conversationnelle (updateMemory / graph-rag). Or `updateMemory` extrait et
+        // conserve la localisation, le revenu, la profession et les objectifs déclarés
+        // (voir src/lib/ai-engine.ts), puis `getMemoryContext` les réinjecte dans le
+        // prompt système. Deux visiteurs déconnectés sortant par la même IP publique
+        // — CGNAT d'un opérateur mobile, réseau d'entreprise, université, VPN — sont
+        // donc la MÊME personne pour le serveur : le second se voit réciter les
+        // revenus et le métier du premier. Le CGNAT mobile est exactement la
+        // situation de la cible marocaine du produit.
+        //
+        // Pire : `x-forwarded-for[0]` est fourni par l'appelant. Cloudflare *ajoute*
+        // l'IP réelle à un XFF existant au lieu de le remplacer, donc l'élément [0]
+        // est contrôlable — l'identité n'était pas seulement sujette aux collisions,
+        // elle était forgeable, ce qui permettait de lire délibérément la mémoire
+        // associée à une IP donnée.
+        //
+        // La règle appliquée maintenant :
+        //   - la clé de QUOTA peut dériver du réseau (c'est le seul signal disponible
+        //     pour un anonyme, et le pire cas est un quota partagé) ;
+        //   - la clé de MÉMOIRE ne peut dériver QUE d'une identité vérifiée. Pas de
+        //     compte, pas de mémoire — ni lecture, ni écriture.
+        const isAuthenticated = Boolean(userId);
+
+        /** Clé de persistance. `null` pour un appelant anonyme : rien n'est stocké. */
+        const memoryKey: string | null = isAuthenticated ? userId : null;
+
         if (!userId) {
-            const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-                || req.headers.get("x-real-ip") || "unknown";
-            userId = `anon:${ip}`;
+            // `clientIp()` est le helper du dépôt : il privilégie les en-têtes posés
+            // par l'infrastructure plutôt que le premier segment de x-forwarded-for.
+            const { clientIp } = await import("@/lib/auth-middleware");
+            userId = `anon:${clientIp(req)}`;
         }
 
         // ─── Rate Limiting ─────────────────────────────────────────
+        // Deux étages : le bucket mémoire est un pré-filtre local gratuit, mais
+        // en serverless c'est un compteur par instance qui repart à zéro à
+        // chaque démarrage à froid. Cette route déclenche un appel LLM payant,
+        // donc elle passe aussi par le compteur partagé (fail-open).
         const rateCheck = checkRateLimit(userId);
-        if (!rateCheck.allowed) {
+        const durable = rateCheck.allowed
+            ? await (await import("@/lib/rate-limit-durable")).consumeDurableToken(userId, {
+                  max: 20,
+                  refillPerSec: 20 / 60,
+              })
+            : { allowed: false, resetMs: rateCheck.resetMs };
+
+        if (!rateCheck.allowed || !durable.allowed) {
+            const resetMs = rateCheck.allowed ? durable.resetMs : rateCheck.resetMs;
             return new Response(
                 JSON.stringify({
                     error: "Rate limit atteint. Réessaie dans quelques secondes.",
                     remaining: 0,
-                    resetMs: rateCheck.resetMs,
+                    resetMs,
                 }),
                 {
                     status: 429,
                     headers: {
                         "Content-Type": "application/json",
-                        "Retry-After": String(Math.ceil(rateCheck.resetMs / 1000)),
+                        "Retry-After": String(Math.ceil(resetMs / 1000)),
                         "X-RateLimit-Remaining": "0",
                         ...getSecurityHeaders(),
                     },
                 }
             );
+        }
+
+        // ─── Droits d'abonnement ───────────────────────────────────
+        // Appliqués uniquement aux comptes identifiés. Un visiteur anonyme est
+        // déjà borné par le rate limiting ci-dessus ; lui ouvrir un compteur
+        // mensuel créerait un document Firestore par IP, pour un plan qu'il
+        // n'a pas — et une IP n'est pas une personne (voir la note sur
+        // `memoryKey` plus haut dans ce fichier).
+        if (memoryKey) {
+            // Persona : la landing vend « 1 persona » en Free et « 5 » en Pro.
+            // On refuse explicitement plutôt que de retomber en silence sur le
+            // persona gratuit — recevoir le Stratège après avoir cliqué sur le
+            // Sage passe pour un bug, pas pour une limite d'offre.
+            if (persona && persona !== FREE_PERSONA) {
+                const unlocked = await userHasFeature(memoryKey, "all_personas");
+                if (!unlocked) {
+                    return new Response(
+                        JSON.stringify({
+                            error: "plan_required",
+                            message: `Le persona « ${persona} » fait partie du plan Pro. Le Stratège reste disponible sans abonnement.`,
+                            feature: "all_personas",
+                            upgradeUrl: "/#pricing",
+                        }),
+                        { status: 402, headers: { "Content-Type": "application/json", ...getSecurityHeaders() } }
+                    );
+                }
+            }
+
+            // Volume mensuel de messages. Consommé avant l'appel au modèle :
+            // c'est cet appel qui coûte de l'argent, donc c'est lui qu'il faut
+            // borner — pas la réponse une fois qu'elle est payée.
+            const msgQuota = await consumeQuota(memoryKey, "jarvis_messages");
+            if (!msgQuota.allowed) {
+                return new Response(
+                    JSON.stringify({
+                        error: "quota_exceeded",
+                        message: `Tu as utilisé tes ${msgQuota.limit} messages inclus ce mois-ci.`,
+                        quota: { used: msgQuota.used, limit: msgQuota.limit },
+                        upgradeUrl: "/#pricing",
+                    }),
+                    { status: 402, headers: { "Content-Type": "application/json", ...getSecurityHeaders() } }
+                );
+            }
         }
 
         // ─── Security: Prompt Injection Check ─────────────────────
@@ -255,7 +402,7 @@ export async function POST(req: Request) {
         const localeInstruction = getJarvisLocaleInstruction(detectedLocale);
 
         // ─── Cache Check ───────────────────────────────────────────
-        const cached = getCachedResponse(messages, persona);
+        const cached = getCachedResponse(messages, persona, userId);
         if (cached) {
             const encoder = new TextEncoder();
             const stream = new ReadableStream({
@@ -279,8 +426,14 @@ export async function POST(req: Request) {
         }
 
         // ─── Memory Context ────────────────────────────────────────
-        const memoryContext = getMemoryContext(userId);
-        const graphRagContext = getContextForQuery(userId, lastUserMessage?.content || "");
+        // Lue uniquement pour une identité vérifiée. Pour un anonyme, `memoryKey`
+        // vaut null et la conversation démarre sans historique — c'est le
+        // comportement voulu : mieux vaut un assistant sans mémoire qu'un assistant
+        // qui restitue la situation financière de quelqu'un d'autre.
+        const memoryContext = memoryKey ? getMemoryContext(memoryKey) : "";
+        const graphRagContext = memoryKey
+            ? getContextForQuery(memoryKey, lastUserMessage?.content || "")
+            : "";
         const personaPrompt = PERSONAS[persona] || PERSONAS.strategist;
         const fullSystemPrompt = [
             SYSTEM_PROMPT,
@@ -296,106 +449,99 @@ export async function POST(req: Request) {
             .filter(Boolean)
             .join("\n");
 
-        // ─── Smart Model Selection ─────────────────────────────────
-        const modelConfig = selectModel(persona);
+        // ─── Model selection ───────────────────────────────────────
+        // Goes through the shared provider chain rather than the old
+        // StepFun-or-Google branch, which ignored every other free tier: with a
+        // Groq / Cerebras / Mistral / OpenRouter key configured, JARVIS used to
+        // fall through to the mock anyway. Reflective personas get the
+        // reasoning tier, the rest get the fast one.
+        const capability: Capability =
+            persona === "sage" || persona === "strategist" ? "reasoning" : "fast";
+        const selected = selectProviderModel(capability) ?? selectProviderModel("fast");
 
-        // ─── AI Provider Execution ─────────────────────────────────
-        if (modelConfig.provider === "google") {
+        if (selected) {
             const result = streamText({
-                model: google(modelConfig.modelId),
+                model: selected.model,
                 system: fullSystemPrompt,
                 messages,
-                maxOutputTokens: modelConfig.maxTokens,
-                temperature: modelConfig.temperature,
-                tools: jarvisTools,
-                stopWhen: stepCountIs(3),
+                maxOutputTokens: 2048,
+                temperature: 0.7,
+                // Tool calling is only reliable on Google's first-party provider;
+                // the OpenAI-compatible free tiers vary too much to depend on it.
+                ...(selected.provider === "google"
+                    ? { tools: jarvisTools, stopWhen: stepCountIs(3) }
+                    : {}),
             });
 
             const lastUserMsg = messages.filter((m: { role: string }) => m.role === "user").pop();
             if (lastUserMsg) {
                 result.text.then((text: string) => {
-                    setCachedResponse(messages, persona, text);
-                    updateMemory(userId, lastUserMsg.content, text);
-                    updateGraphFromConversation(userId, lastUserMsg.content, text);
+                    // Le cache reste scopé sur `userId` : sa clé inclut le hash des
+                    // trois derniers messages, donc une collision suppose une
+                    // conversation identique octet pour octet — pas une fuite.
+                    setCachedResponse(messages, persona, text, userId);
+
+                    // La mémoire, elle, n'est écrite que pour un compte vérifié.
+                    // `updateMemory` extrait revenus, profession et localisation du
+                    // message : les indexer sous une clé dérivée du réseau revient à
+                    // les rendre lisibles par le visiteur suivant sur la même IP.
+                    if (memoryKey) {
+                        updateMemory(memoryKey, lastUserMsg.content, text);
+                        updateGraphFromConversation(memoryKey, lastUserMsg.content, text);
+                    }
                 });
             }
 
             return result.toTextStreamResponse({
                 headers: {
                     "X-Cache": "MISS",
-                    "X-Model": modelConfig.displayName,
+                    "X-Model": `${selected.provider}/${selected.modelId}`,
                     "X-RateLimit-Remaining": String(rateCheck.remaining),
                     "X-GraphRAG": "enabled",
                 },
             });
         }
 
-        if (modelConfig.provider === "stepfun") {
-            const result = streamText({
-                model: stepfun(modelConfig.modelId),
-                system: fullSystemPrompt,
-                messages,
-                maxOutputTokens: modelConfig.maxTokens,
-                temperature: modelConfig.temperature,
-                // StepFun OpenAI-compatible API does not support multi-step tool calling reliably; keep tools off for now.
-            });
+        // ─── No provider configured ────────────────────────────────
+        //
+        // This branch used to stream canned "persona" answers that read exactly
+        // like a real reply. One of them asserted a 6-12 month window on digital
+        // visa programmes — a specific, invented, checkable claim. On a product
+        // that advises people about visas, taxes and inheritance, a confident
+        // fabrication is the worst possible failure: the user cannot tell it
+        // apart from an answer, and may act on it.
+        //
+        // Saying "not configured" is the only honest response when there is no
+        // model behind the endpoint.
+        const setupMessage =
+            "⚠️ **Aucun modèle IA n'est configuré**, je ne peux donc pas répondre à ta question.\n\n" +
+            "Je préfère te le dire clairement plutôt que d'inventer une réponse — sur des sujets de visa, " +
+            "de fiscalité ou de succession, une information fausse peut coûter cher.\n\n" +
+            "Pour activer J.A.R.V.I.S., ajoute une clé gratuite dans `.env.local` :\n\n" +
+            "```\nGOOGLE_GENERATIVE_AI_API_KEY=...\n```\n\n" +
+            "Elle se crée en une minute sur **aistudio.google.com/apikey**, sans carte bancaire. " +
+            "Groq, Cerebras, Mistral et OpenRouter fonctionnent aussi — la première clé trouvée est utilisée.\n\n" +
+            "En attendant, le **Simulateur** et les **guides visa** fonctionnent sans IA : leurs données sont statiques.";
 
-            const lastUserMsg = messages.filter((m: { role: string }) => m.role === "user").pop();
-            if (lastUserMsg) {
-                result.text.then((text: string) => {
-                    setCachedResponse(messages, persona, text);
-                    updateMemory(userId, lastUserMsg.content, text);
-                    updateGraphFromConversation(userId, lastUserMsg.content, text);
-                });
-            }
-
-            return result.toTextStreamResponse({
-                headers: {
-                    "X-Cache": "MISS",
-                    "X-Model": modelConfig.displayName,
-                    "X-RateLimit-Remaining": String(rateCheck.remaining),
-                    "X-GraphRAG": "enabled",
-                },
-            });
-        }
-
-        // ─── Mock Mode (Enhanced) ──────────────────────────────────
-        const mockResponses: Record<string, string> = {
-            sage: "La question que tu poses révèle un **schéma de pensée** intéressant. Avant de chercher la réponse, explorons le cadre : quel serait le scénario si tu faisais exactement l'inverse de ce que tu envisages ? Cette inversion te donnera une clarté que l'approche directe ne peut pas offrir.\n\nQuelle est la chose que tu évites consciemment dans cette réflexion ?",
-            strategist:
-                "Voici l'analyse structurée :\n\n**1. Situation actuelle** — Tu es en phase d'exploration, ce qui est normal mais coûteux en temps\n**2. Données clés** — Le marché montre une fenêtre d'opportunité de 6-12 mois sur les programmes de visa numérique\n**3. Action immédiate** — Lance une simulation comparative dans le Simulateur de Trajectoire avec tes 3 pays cibles\n\nQuel est ton horizon temporel pour cette transition ?",
-            coach:
-                "Tu sais ce qui sépare les 1% qui réussissent des 99% qui planifient ? **L'exécution immédiate**. Pas demain, pas lundi — maintenant.\n\nVoici ton protocole pour les prochaines 24h :\n- **Matin** : 90 minutes de Deep Work sur ton objectif #1\n- **Midi** : 1 action inconfortable (un appel, un email, une décision)\n- **Soir** : Journal de 5 minutes — qu'as-tu appris ?\n\nQuelle est cette action inconfortable que tu repousses ?",
-            executor:
-                "**SYSTÈME D'EXÉCUTION INITIALISÉ**\n\n```\nPriorité #1 : [À définir]\nDeadline  : [À fixer]\nMilestone : [Prochain jalon]\n```\n\nEnvoie-moi ton objectif principal en une phrase. Je le décompose en tâches actionnables avec des deadlines non-négociables.",
-            friend:
-                "Hey ! 😄 Ça fait plaisir de discuter. J'ai l'impression que tu as quelque chose en tête — je me trompe ? Raconte, je suis là pour écouter (et probablement pour te dire ce que tu sais déjà mais que t'as besoin d'entendre 😉).",
-        };
-
-        const mockText = mockResponses[persona] || mockResponses.strategist;
-        const lastUserMsg = messages?.filter((m: { role: string }) => m.role === "user").pop();
-        if (lastUserMsg) {
-            updateMemory(userId, lastUserMsg.content, mockText);
-            updateGraphFromConversation(userId, lastUserMsg.content, mockText);
-        }
+        // Deliberately not written to memory or the knowledge graph: this is a
+        // system notice, not a conversation turn, and storing it would pollute
+        // the user's context for every later exchange.
 
         const encoder = new TextEncoder();
         const stream = new ReadableStream({
-            async start(controller) {
-                const words = mockText.split(" ");
-                for (const word of words) {
-                    controller.enqueue(encoder.encode(word + " "));
-                    await new Promise((r) => setTimeout(r, 25));
-                }
+            start(controller) {
+                controller.enqueue(encoder.encode(setupMessage));
                 controller.close();
             },
         });
 
         return new Response(stream, {
+            status: 503,
             headers: {
                 "Content-Type": "text/plain; charset=utf-8",
                 "X-Cache": "MISS",
-                "X-Model": "Odyssey Mock AI",
+                "X-Model": "none",
+                "X-AI-Configured": "false",
                 "X-RateLimit-Remaining": String(rateCheck.remaining),
             },
         });
@@ -408,17 +554,12 @@ export async function POST(req: Request) {
     }
 }
 
-// ─── Cache Stats Endpoint (GET) ──────────────────────────────────────────────
+// ─── Status Endpoint (GET) ───────────────────────────────────────────────────
+// Public → minimal. Les stats de cache et la liste des clés API configurées
+// décrivaient l'infrastructure à quiconque ; le diagnostic détaillé vit
+// derrière l'authentification dans /api/health.
 export async function GET() {
-    const stats = getCacheStats();
-    return new Response(JSON.stringify({
-        cache: stats,
-        status: "operational",
-        models_available: {
-            anthropic: !!process.env.ANTHROPIC_API_KEY,
-            google: !!process.env.GOOGLE_GENERATIVE_AI_API_KEY,
-        },
-    }), {
+    return new Response(JSON.stringify({ status: "operational" }), {
         headers: { "Content-Type": "application/json" },
     });
 }

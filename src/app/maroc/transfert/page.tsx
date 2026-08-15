@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowLeft, TrendingDown, Zap, AlertTriangle, Crown, Send } from "lucide-react";
-import { CORRIDORS, rankQuotes, revealer } from "@/lib/maroc-transfert";
+import { CORRIDORS, rankQuotes, revealer, hasUnverifiedPricing } from "@/lib/maroc-transfert";
 
 export default function TransfertPage() {
   const [corridorId, setCorridorId] = useState("fr");
@@ -16,7 +16,8 @@ export default function TransfertPage() {
   const cur = corridor.currency === "EUR" ? "€" : "C$";
 
   return (
-    <div className="space-y-12 max-w-4xl mx-auto w-full pt-6 pb-20">
+    <div
+        lang="fr" dir="ltr" className="space-y-12 max-w-4xl mx-auto w-full pt-6 pb-20">
       <header className="space-y-3">
         <Link href="/maroc" className="text-sm text-[var(--text-3)] hover:text-[var(--primary)] inline-flex items-center gap-1"><ArrowLeft size={14} /> Hub Vivre au Maroc</Link>
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold" style={{ background: "var(--bg-2)", border: "1px solid var(--border-2)" }}>
@@ -30,8 +31,33 @@ export default function TransfertPage() {
           </span>
         </h1>
         <p className="text-lg text-[var(--text-2)] max-w-2xl">
-          Le coût réel d&apos;un transfert, c&apos;est surtout la <strong className="text-[var(--text-0)]">marge de change cachée</strong> — pas les frais affichés. On la calcule pour toi et on classe les opérateurs par <strong className="text-[var(--text-0)]">MAD réellement reçus</strong>.
+          Le coût réel d&apos;un transfert, c&apos;est surtout la <strong className="text-[var(--text-0)]">marge de change</strong> — pas les frais affichés. On la calcule pour toi et on classe les opérateurs par <strong className="text-[var(--text-0)]">MAD réellement reçus</strong>.
         </p>
+
+        {/* Cet avertissement est piloté par les données elles-mêmes plutôt
+            qu'écrit en dur : il disparaîtra automatiquement le jour où chaque
+            opérateur portera un relevé daté, et pas un jour avant. Afficher un
+            tarif nominatif non relevé comme un fait constaté engage la
+            responsabilité de l'éditeur vis-à-vis des sociétés citées. */}
+        {hasUnverifiedPricing() && (
+          <p
+            role="note"
+            className="max-w-2xl text-sm p-3 rounded-[var(--r-sm)] border"
+            style={{
+              borderColor: "var(--border-1)",
+              background: "var(--bg-2)",
+              color: "var(--text-2)",
+            }}
+          >
+            <strong className="text-[var(--text-1)]">Ordres de grandeur, pas des tarifs relevés.</strong>{" "}
+            Les marges affichées ci-dessous servent à illustrer l&apos;écart entre frais annoncés
+            et coût réel. Elles n&apos;ont pas été relevées sur les grilles officielles et varient
+            selon le corridor, le montant, le moyen de paiement et le jour.{" "}
+            <strong className="text-[var(--text-1)]">
+              Vérifie le taux exact chez l&apos;opérateur avant d&apos;envoyer.
+            </strong>
+          </p>
+        )}
       </header>
 
       {/* Controls */}
@@ -110,7 +136,7 @@ export default function TransfertPage() {
                   {worst && <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-md" style={{ background: "rgba(193,39,45,0.15)", color: "#c1272d" }}><AlertTriangle size={11} /> Le + cher</span>}
                 </div>
                 <div className="text-xs text-[var(--text-3)] mt-0.5">
-                  {q.operator.speed} · marge cachée {q.operator.fxMarginPct}% · frais {q.feeTotal.toFixed(2)} {cur} · coût réel {q.realCostPct.toFixed(1)}%
+                  {q.operator.speed} · marge de change ~{q.operator.fxMarginPct}% · frais {q.feeTotal.toFixed(2)} {cur} · coût réel {q.realCostPct.toFixed(1)}%
                 </div>
               </div>
               <div className="text-right">

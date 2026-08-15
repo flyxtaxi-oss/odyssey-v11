@@ -9,7 +9,7 @@ import { rankCities, computeSerenity } from "@/lib/maroc-serenite";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] as const } },
+  show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] as const } },
 };
 
 export default function SerenitePage() {
@@ -21,7 +21,8 @@ export default function SerenitePage() {
 
   return (
     <motion.main
-      variants={{ show: { transition: { staggerChildren: 0.07 } } }}
+        lang="fr" dir="ltr"
+      variants={{ show: { transition: { staggerChildren: 0.035 } } }}
       initial="hidden"
       animate="show"
       className="max-w-5xl mx-auto px-4 py-10 space-y-12"
@@ -97,7 +98,7 @@ export default function SerenitePage() {
                       <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${r.score}%` }}
-                        transition={{ duration: 0.6, ease: "easeOut" }}
+                        transition={{ duration: 0.35, ease: "easeOut" }}
                         className="h-full rounded-full"
                         style={{ background: r.band.color }}
                       />
@@ -137,7 +138,7 @@ export default function SerenitePage() {
                   key={`${detail.citySlug}-${d.id}-${d.value}`}
                   initial={{ width: 0 }}
                   animate={{ width: `${d.value}%` }}
-                  transition={{ duration: 0.5, ease: "easeOut" }}
+                  transition={{ duration: 0.3, ease: "easeOut" }}
                   className="h-full rounded-full"
                   style={{ background: scoreColor(d.value) }}
                 />

@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send, Mic, MicOff, Brain, User, Volume2, Copy, Check, Sparkles } from "lucide-react";
-import { getAuth } from "firebase/auth";
+import { apiFetch } from "@/lib/api-client";
 
 type Message = {
     id: string;
@@ -52,25 +52,22 @@ export default function JarvisPage() {
         setIsLoading(true);
 
         try {
-            // Get Firebase token for authentication
-            const auth = getAuth();
-            const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
-            
-            const headers: Record<string, string> = { "Content-Type": "application/json" };
-            if (token) {
-                headers["Authorization"] = `Bearer ${token}`;
-            }
-
-            const res = await fetch("/api/jarvis", {
+            const res = await apiFetch("/api/jarvis", {
                 method: "POST",
-                headers,
                 body: JSON.stringify({
                     messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
                     persona: activePersona,
                 }),
             });
 
-            if (!res.ok) throw new Error("API error");
+            // A 503 with X-AI-Configured:false is the server saying "no model is
+            // set up" and streaming an explanation of how to fix it. Treating it
+            // as a generic failure would throw that explanation away and show
+            // "erreur de connexion", which is both wrong and unactionable.
+            const isConfigNotice =
+                res.status === 503 && res.headers.get("X-AI-Configured") === "false";
+
+            if (!res.ok && !isConfigNotice) throw new Error("API error");
 
             const reader = res.body?.getReader();
             const decoder = new TextDecoder();
@@ -135,7 +132,8 @@ export default function JarvisPage() {
     const currentPersona = personas.find((p) => p.id === activePersona)!;
 
     return (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-[calc(100vh-80px)] flex flex-col pt-2 max-w-4xl mx-auto w-full">
+        <motion.div
+            lang="fr" dir="ltr" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-[calc(100vh-80px)] flex flex-col pt-2 max-w-4xl mx-auto w-full">
             {/* ─── Top Bar ─── */}
             <div className="flex items-center justify-between py-4 mb-2 border-b border-[var(--border-0)]">
                 <div className="flex items-center gap-4">
@@ -195,7 +193,7 @@ export default function JarvisPage() {
                                 key={msg.id}
                                 initial={{ opacity: 0, y: 15, scale: 0.98 }}
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                                transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                                transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
                                 className={`flex gap-4 ${isUser ? "flex-row-reverse" : ""}`}
                             >
                                 {/* Avatar */}
@@ -265,8 +263,12 @@ export default function JarvisPage() {
                     })}
                 </AnimatePresence>
 
-                {/* Typing indicator */}
-                {isLoading && (
+                {/* Typing indicator — only while WAITING for the first token.
+                    It used to be gated on isLoading alone, which stays true for
+                    the whole request: the three dots kept pulsing next to text
+                    that was already streaming in. Once tokens arrive, the text
+                    itself is the feedback. */}
+                {isLoading && !isStreaming && (
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex gap-4">
                         <div
                             className="w-8 h-8 rounded-full flex items-center justify-center text-sm bg-[var(--bg-1)] border border-[var(--border-1)]"

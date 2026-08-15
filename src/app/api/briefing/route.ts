@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { collection, query, where, orderBy, limit, getDocs, doc, getDoc } from "firebase/firestore";
-import { db, COLLECTIONS } from "@/lib/firebase";
-import { authenticateRequest } from "@/lib/auth-middleware";
+import { COLLECTIONS } from "@/lib/firebase";
+import { serverDb } from "@/lib/firestore-server";
+import { authenticateRequest, enforceRateLimit } from "@/lib/auth-middleware";
 import { getSecurityHeaders } from "@/lib/security";
 
 // ==============================================================================
@@ -9,6 +9,10 @@ import { getSecurityHeaders } from "@/lib/security";
 // ==============================================================================
 
 export async function GET(req: NextRequest) {
+    // Each call fans out to several Firestore reads, which are billed.
+    const limited = await enforceRateLimit(req);
+    if (limited) return limited;
+
     try {
         const auth = await authenticateRequest(req);
         if (!auth.success) {
@@ -17,17 +21,17 @@ export async function GET(req: NextRequest) {
 
         const userId = auth.user.uid;
         const today = new Date().toISOString().split("T")[0];
+        const db = await serverDb();
 
         // 1. Fetch latest checkin
         let latestCheckin = null;
         try {
-            const checkinQuery = query(
-                collection(db, COLLECTIONS.CHECKINS),
-                where("user_id", "==", userId),
-                orderBy("created_at", "desc"),
-                limit(1)
-            );
-            const checkinSnap = await getDocs(checkinQuery);
+            const checkinSnap = await db
+                .collection(COLLECTIONS.CHECKINS)
+                .where("user_id", "==", userId)
+                .orderBy("created_at", "desc")
+                .limit(1)
+                .get();
             if (!checkinSnap.empty) {
                 latestCheckin = checkinSnap.docs[0].data();
             }
@@ -36,10 +40,9 @@ export async function GET(req: NextRequest) {
         // 2. Fetch user profile for name
         let userName = "Explorer";
         try {
-            const profileRef = doc(db, COLLECTIONS.PROFILES, userId);
-            const profileSnap = await getDoc(profileRef);
-            if (profileSnap.exists()) {
-                const profile = profileSnap.data();
+            const profileSnap = await db.collection(COLLECTIONS.PROFILES).doc(userId).get();
+            if (profileSnap.exists) {
+                const profile = profileSnap.data() ?? {};
                 userName = profile.full_name || profile.email?.split("@")[0] || "Explorer";
             }
         } catch { /* ignore */ }
@@ -47,11 +50,10 @@ export async function GET(req: NextRequest) {
         // 3. Fetch active skills for priorities
         const priorities: string[] = [];
         try {
-            const tracksQuery = query(
-                collection(db, COLLECTIONS.SKILL_TRACKS),
-                where("user_id", "==", userId)
-            );
-            const tracksSnap = await getDocs(tracksQuery);
+            const tracksSnap = await db
+                .collection(COLLECTIONS.SKILL_TRACKS)
+                .where("user_id", "==", userId)
+                .get();
             const activeTracks = tracksSnap.docs
                 .map(d => d.data())
                 .filter(t => (t.progress_percentage || 0) < 100)
@@ -66,12 +68,11 @@ export async function GET(req: NextRequest) {
         // 4. Fetch today's schedule from checkins (as events)
         const schedule: Array<{ time: string; title: string; type: string }> = [];
         try {
-            const todayCheckinsQuery = query(
-                collection(db, COLLECTIONS.CHECKINS),
-                where("user_id", "==", userId),
-                where("date", "==", today)
-            );
-            const todaySnap = await getDocs(todayCheckinsQuery);
+            const todaySnap = await db
+                .collection(COLLECTIONS.CHECKINS)
+                .where("user_id", "==", userId)
+                .where("date", "==", today)
+                .get();
             for (const d of todaySnap.docs) {
                 const data = d.data();
                 if (data.top_priority) {

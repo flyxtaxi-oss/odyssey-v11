@@ -14,7 +14,7 @@ import {
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] as const } },
+  show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] as const } },
 };
 
 const dateFmt = (iso: string) =>
@@ -28,7 +28,8 @@ export default function VeillePage() {
 
   return (
     <motion.main
-      variants={{ show: { transition: { staggerChildren: 0.06 } } }}
+        lang="fr" dir="ltr"
+      variants={{ show: { transition: { staggerChildren: 0.03 } } }}
       initial="hidden"
       animate="show"
       className="max-w-4xl mx-auto px-4 py-10 space-y-10"

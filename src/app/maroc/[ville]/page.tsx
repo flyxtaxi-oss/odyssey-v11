@@ -49,7 +49,7 @@ export default async function MarocVillePage({ params }: PageProps) {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-12 space-y-8">
+    <div lang="fr" dir="ltr" className="max-w-4xl mx-auto px-4 py-12 space-y-8">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
       <header className="space-y-3">

@@ -1,82 +1,162 @@
-import fs from 'fs';
-import path from 'path';
-import crypto from 'crypto';
+import fs from "fs";
+import path from "path";
+import os from "os";
+import crypto from "crypto";
 
 /**
- * JARVIS Smart Cache System (Local File-Based)
- * Saves tokens and money by caching identical LLM requests.
+ * JARVIS Smart Cache — bounded, expiring, serverless-safe LLM response cache.
+ *
+ * Why this exists: LLM calls are the app's only per-request money cost. Two
+ * users asking "quel visa pour le Portugal ?" should cost one call, not two.
+ *
+ * Design constraints learned the hard way:
+ *  - Vercel's filesystem is READ-ONLY except os.tmpdir(). Writing to
+ *    process.cwd() throws in production while working fine locally.
+ *  - Entries must expire. A cached answer about visa rules that never goes
+ *    stale is worse than no cache — it serves outdated legal information.
+ *  - The cache must be bounded, or a long-running instance leaks memory.
+ *  - Writes must not block the request. Disk persistence is a nice-to-have,
+ *    correctness of the in-memory layer is not.
  */
 
-const CACHE_FILE_PATH = path.join(process.cwd(), '.jarvis-cache.json');
+const TTL_MS = Number(process.env.JARVIS_CACHE_TTL_MS) || 6 * 60 * 60 * 1000; // 6h
+const MAX_ENTRIES = Number(process.env.JARVIS_CACHE_MAX_ENTRIES) || 500;
+
+/** Serverless filesystems are read-only outside the temp dir. */
+const CACHE_FILE_PATH = path.join(os.tmpdir(), "jarvis-cache.json");
 
 interface CacheEntry {
-    prompt: string;
-    timestamp: number;
-    response: unknown;
+  prompt: string;
+  timestamp: number;
+  response: unknown;
 }
 
-// In-memory fallback
-let memCache: Record<string, CacheEntry> = {};
+let memCache = new Map<string, CacheEntry>();
+let persistenceDisabled = false;
 
-// Load cache from disk on boot
-if (typeof window === 'undefined') {
-    try {
-        if (fs.existsSync(CACHE_FILE_PATH)) {
-            const data = fs.readFileSync(CACHE_FILE_PATH, 'utf-8');
-            memCache = JSON.parse(data);
+function isExpired(entry: CacheEntry): boolean {
+  return Date.now() - entry.timestamp > TTL_MS;
+}
+
+// ─── Boot: warm from disk, dropping anything already stale ───────────────────
+if (typeof window === "undefined") {
+  try {
+    if (fs.existsSync(CACHE_FILE_PATH)) {
+      const raw = JSON.parse(fs.readFileSync(CACHE_FILE_PATH, "utf-8")) as Record<string, CacheEntry>;
+      for (const [key, entry] of Object.entries(raw)) {
+        if (entry && typeof entry.timestamp === "number" && !isExpired(entry)) {
+          memCache.set(key, entry);
         }
-    } catch {
-        console.warn('⚠️ Could not load JARVIS cache from disk. Using clean memory cache.');
+      }
     }
+  } catch {
+    // A corrupt or unreadable cache must never prevent the app from booting.
+    memCache = new Map();
+  }
 }
 
-function saveCacheToDisk() {
-    if (typeof window !== 'undefined') return;
-    try {
-        fs.writeFileSync(CACHE_FILE_PATH, JSON.stringify(memCache, null, 2), 'utf-8');
-    } catch (e) {
-        console.error('❌ Failed to write JARVIS cache to disk', e);
-    }
+// ─── Persistence: debounced, async, failure-tolerant ─────────────────────────
+
+let flushTimer: NodeJS.Timeout | null = null;
+
+function scheduleFlush() {
+  if (typeof window !== "undefined" || persistenceDisabled || flushTimer) return;
+
+  // Coalesce bursts of writes into one disk hit, off the request path.
+  flushTimer = setTimeout(() => {
+    flushTimer = null;
+    const snapshot = Object.fromEntries(memCache);
+    fs.promises
+      .writeFile(CACHE_FILE_PATH, JSON.stringify(snapshot), "utf-8")
+      .catch(() => {
+        // Read-only filesystem or quota: fall back to memory-only for the
+        // rest of this instance's life rather than logging on every request.
+        persistenceDisabled = true;
+      });
+  }, 2000);
+
+  // Don't hold the process open just to flush a cache.
+  flushTimer.unref?.();
+}
+
+/** Drop expired entries, then evict oldest-first until under the size cap. */
+function evict() {
+  for (const [key, entry] of memCache) {
+    if (isExpired(entry)) memCache.delete(key);
+  }
+
+  if (memCache.size <= MAX_ENTRIES) return;
+
+  const byAge = [...memCache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
+  for (const [key] of byAge.slice(0, memCache.size - MAX_ENTRIES)) {
+    memCache.delete(key);
+  }
 }
 
 /**
- * Generates a consistent hash for a prompt and system instruction.
+ * Build a cache key.
+ *
+ * `scope` isolates entries that must not be shared between callers — pass a
+ * user id whenever the prompt carries personal context, otherwise one user's
+ * answer can be served to another.
  */
-export function generateCacheKey(prompt: string, systemInstruction?: string, tools?: string[]): string {
-    const payload = JSON.stringify({ prompt, systemInstruction, tools });
-    return crypto.createHash('sha256').update(payload).digest('hex');
+export function generateCacheKey(
+  prompt: string,
+  systemInstruction?: string,
+  tools?: string[],
+  scope?: string
+): string {
+  const payload = JSON.stringify({ prompt, systemInstruction, tools, scope });
+  return crypto.createHash("sha256").update(payload).digest("hex");
 }
 
-/**
- * Retrieves a cached response if it exists.
- */
-export function getCachedResponse(prompt: string, systemInstruction?: string, tools?: string[]): unknown | null {
-    const key = generateCacheKey(prompt, systemInstruction, tools);
-    if (memCache[key]) {
-        console.log(`🧠 [JARVIS Cache Hit] Tokens saved for query: "${prompt.substring(0, 30)}..."`);
-        return memCache[key].response;
-    }
+export function getCachedResponse(
+  prompt: string,
+  systemInstruction?: string,
+  tools?: string[],
+  scope?: string
+): unknown | null {
+  const key = generateCacheKey(prompt, systemInstruction, tools, scope);
+  const entry = memCache.get(key);
+
+  if (!entry) return null;
+
+  if (isExpired(entry)) {
+    memCache.delete(key);
     return null;
+  }
+
+  return entry.response;
 }
 
-/**
- * Saves a new response to the cache.
- */
-export function setCachedResponse(prompt: string, response: unknown, systemInstruction?: string, tools?: string[]) {
-    const key = generateCacheKey(prompt, systemInstruction, tools);
-    memCache[key] = {
-        prompt,
-        timestamp: Date.now(),
-        response
-    };
-    saveCacheToDisk();
+export function setCachedResponse(
+  prompt: string,
+  response: unknown,
+  systemInstruction?: string,
+  tools?: string[],
+  scope?: string
+) {
+  const key = generateCacheKey(prompt, systemInstruction, tools, scope);
+  memCache.set(key, { prompt, timestamp: Date.now(), response });
+  evict();
+  scheduleFlush();
 }
 
-/**
- * Clears the entire cache.
- */
 export function clearSmartCache() {
-    memCache = {};
-    saveCacheToDisk();
-    console.log('🧹 [JARVIS Cache] Cleared successfully.');
+  memCache.clear();
+  scheduleFlush();
+}
+
+/** Observability: surfaced by /api/jarvis so cache health is measurable. */
+export function getCacheStats() {
+  let expired = 0;
+  for (const entry of memCache.values()) if (isExpired(entry)) expired++;
+
+  return {
+    entries: memCache.size,
+    expired,
+    maxEntries: MAX_ENTRIES,
+    ttlMs: TTL_MS,
+    persistence: persistenceDisabled ? "memory-only" : "disk",
+  };
 }

@@ -14,11 +14,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Aligné sur .nvmrc : la CI validait Node 20 alors que le développement et
+      # Vercel tournent en 24 — elle testait donc une configuration que personne
+      # n'exécute.
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: '.nvmrc'
           cache: 'npm'
+
+      # L'emulator Firestore tourne sur la JVM.
+      - name: Setup Java (Firestore emulator)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
 
       - name: Install deps
         run: npm ci
@@ -26,9 +36,21 @@ jobs:
       - name: TypeScript check
         run: npx tsc --noEmit
 
+      # Bloquant, et à zéro warning : le projet n'en a plus aucun, donc le
+      # prochain qui apparaît est une régression, pas du bruit hérité.
       - name: ESLint
-        run: npm run lint -- --max-warnings=200
-        continue-on-error: true
+        run: npm run lint -- --max-warnings=0
+
+      # A CI that never runs the test suite gives false confidence — the suite
+      # existed and was green locally while nothing enforced it on main.
+      - name: Unit tests
+        run: npm test
+
+      # Les tests unitaires SAUTENT les scénarios de règles quand l'emulator
+      # est absent : sans cette étape, la CI serait verte sans jamais vérifier
+      # qu'Alice ne peut pas lire les données de Bob.
+      - name: Firestore rules (emulator)
+        run: npx firebase emulators:exec --only firestore "npx vitest run firestore-rules.emulator"
 
       - name: Next.js build
         run: npm run build

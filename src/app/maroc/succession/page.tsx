@@ -28,7 +28,8 @@ export default function SuccessionPage() {
   const result = useMemo(() => computeSuccession(input), [input]);
 
   return (
-    <div className="space-y-12 max-w-4xl mx-auto w-full pt-6 pb-20">
+    <div
+        lang="fr" dir="ltr" className="space-y-12 max-w-4xl mx-auto w-full pt-6 pb-20">
       <header className="space-y-3">
         <Link href="/maroc" className="text-sm text-[var(--text-3)] hover:text-[var(--primary)] inline-flex items-center gap-1"><ArrowLeft size={14} /> Hub Vivre au Maroc</Link>
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold" style={{ background: "var(--bg-2)", border: "1px solid var(--border-2)" }}>
@@ -112,7 +113,7 @@ export default function SuccessionPage() {
                   <span className="text-lg font-extrabold text-[var(--text-0)]">{sharePct(s.fraction)}</span>
                 </div>
                 <div className="h-2.5 rounded-full overflow-hidden" style={{ background: "var(--bg-3)" }}>
-                  <motion.div className="h-full rounded-full" style={{ background: s.isTaassib ? "linear-gradient(90deg,#c1272d,#e0524f)" : "linear-gradient(90deg,#006233,#00875a)" }} initial={{ width: 0 }} animate={{ width: `${s.fraction * 100}%` }} transition={{ duration: 0.6 }} />
+                  <motion.div className="h-full rounded-full" style={{ background: s.isTaassib ? "linear-gradient(90deg,#c1272d,#e0524f)" : "linear-gradient(90deg,#006233,#00875a)" }} initial={{ width: 0 }} animate={{ width: `${s.fraction * 100}%` }} transition={{ duration: 0.35 }} />
                 </div>
                 <p className="text-xs text-[var(--text-3)] mt-2">{s.basis}</p>
               </motion.div>

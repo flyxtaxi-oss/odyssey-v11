@@ -76,9 +76,10 @@ export default function VisaPage() {
 
   return (
     <motion.div
+        lang="fr" dir="ltr"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
+      transition={{ duration: 0.3 }}
       className="space-y-8 max-w-6xl mx-auto w-full pt-6 pb-12"
     >
       {/* Header */}
