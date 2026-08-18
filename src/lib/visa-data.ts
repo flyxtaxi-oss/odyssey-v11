@@ -9,7 +9,7 @@ export interface CountryVisaRules {
   visaType: string;
 }
 
-const VISA_DATABASE: Record<string, CountryVisaRules> = {
+export const VISA_DATABASE: Record<string, CountryVisaRules> = {
   "PT": { country: "Portugal", flag: "🇵🇹", maxDays: 90, visaType: "Schengen / D8" },
   "TH": { country: "Thaïlande", flag: "🇹🇭", maxDays: 60, visaType: "Exemption / DTV" },
   "ID": { country: "Indonésie", flag: "🇮🇩", maxDays: 60, visaType: "B211A / VOA" },
@@ -26,3 +26,8 @@ export const visaDataService = {
     return VISA_DATABASE[countryCode.toUpperCase()] || { country: countryCode, flag: "🌍", maxDays: 90, visaType: "Tourist" };
   }
 };
+
+// Flat list for country pickers (code + rules).
+export const VISA_COUNTRIES = Object.entries(VISA_DATABASE).map(
+  ([code, rules]) => ({ code, ...rules })
+);

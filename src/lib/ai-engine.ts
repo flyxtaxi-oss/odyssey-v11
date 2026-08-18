@@ -3,6 +3,8 @@
 // Cache, Rate Limiting, Conversation Memory, Model Routing
 // ==============================================================================
 
+import { createHash } from "crypto";
+
 // ─── In-Memory Response Cache (LRU-like) ─────────────────────────────────────
 type CacheEntry = {
     response: string;
@@ -14,21 +16,34 @@ const CACHE_TTL = 1000 * 60 * 30; // 30 minutes
 const CACHE_MAX_SIZE = 200;
 const responseCache = new Map<string, CacheEntry>();
 
-function getCacheKey(messages: Array<{ role: string; content: string }>, persona: string): string {
+/**
+ * Cache key for a conversation turn.
+ *
+ * `scope` MUST be the caller's uid. JARVIS conversations carry personal
+ * context (income, family situation, nationality), so an unscoped key means
+ * two users asking the same question share an answer built from someone
+ * else's data.
+ *
+ * The key is SHA-256, not the previous 32-bit rolling hash: at 32 bits,
+ * collisions become likely around tens of thousands of entries, and a
+ * collision here serves one user's cached answer to another.
+ */
+function getCacheKey(
+    messages: Array<{ role: string; content: string }>,
+    persona: string,
+    scope: string
+): string {
     const last3 = messages.slice(-3);
-    const raw = `${persona}::${last3.map(m => `${m.role}:${m.content}`).join("|")}`;
-    // Simple hash
-    let hash = 0;
-    for (let i = 0; i < raw.length; i++) {
-        const char = raw.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash |= 0;
-    }
-    return `jarvis_${hash}`;
+    const raw = JSON.stringify({ scope, persona, last3 });
+    return `jarvis_${createHash("sha256").update(raw).digest("hex")}`;
 }
 
-export function getCachedResponse(messages: Array<{ role: string; content: string }>, persona: string): string | null {
-    const key = getCacheKey(messages, persona);
+export function getCachedResponse(
+    messages: Array<{ role: string; content: string }>,
+    persona: string,
+    scope: string = "anonymous"
+): string | null {
+    const key = getCacheKey(messages, persona, scope);
     const entry = responseCache.get(key);
     if (!entry) return null;
     if (Date.now() - entry.timestamp > CACHE_TTL) {
@@ -39,13 +54,18 @@ export function getCachedResponse(messages: Array<{ role: string; content: strin
     return entry.response;
 }
 
-export function setCachedResponse(messages: Array<{ role: string; content: string }>, persona: string, response: string): void {
+export function setCachedResponse(
+    messages: Array<{ role: string; content: string }>,
+    persona: string,
+    response: string,
+    scope: string = "anonymous"
+): void {
     // Evict oldest if at capacity
     if (responseCache.size >= CACHE_MAX_SIZE) {
         const oldest = [...responseCache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp)[0];
         if (oldest) responseCache.delete(oldest[0]);
     }
-    const key = getCacheKey(messages, persona);
+    const key = getCacheKey(messages, persona, scope);
     responseCache.set(key, { response, timestamp: Date.now(), hits: 0 });
 }
 
@@ -135,7 +155,7 @@ export function getMemoryContext(userId: string): string {
     return parts.join("\n");
 }
 
-export function updateMemory(userId: string, userMessage: string, aiResponse: string): void {
+export function updateMemory(userId: string, userMessage: string, _aiResponse: string): void {
     let kg = knowledgeStore.get(userId);
     if (!kg) {
         kg = {

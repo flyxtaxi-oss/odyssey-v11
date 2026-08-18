@@ -156,7 +156,7 @@ const MOCK_RESTAURANTS: Record<string, RestaurantResult[]> = {
     ],
 };
 
-const searchRestaurantsHandler: ToolHandler = async (params: any) => {
+const searchRestaurantsHandler: ToolHandler = async (params) => {
     const { query, cuisine, maxResults } = params as z.infer<typeof SearchRestaurantsParams>;
 
     const hasGooglePlacesKey = !!process.env.GOOGLE_PLACES_API_KEY;
@@ -212,10 +212,17 @@ const searchRestaurantsHandler: ToolHandler = async (params: any) => {
         results = MOCK_RESTAURANTS.default;
     }
 
+    // Ces restaurants sont inventés. Le signaler à l'exécution — et non dans la
+    // définition de l'outil — parce que le MÊME outil renvoie de vraies données
+    // quand GOOGLE_PLACES_API_KEY est présente.
     return {
         success: true,
+        simulated: true,
         data: {
+            simulation: true,
             source: hasGooglePlacesKey ? "google_places_fallback" : "mock",
+            message:
+                "Résultats d'exemple : ces restaurants ne proviennent pas d'une recherche réelle.",
             results: results.slice(0, maxResults),
         },
     };
@@ -231,23 +238,25 @@ const BookRestaurantParams = z.object({
     specialRequests: z.string().optional().default(""),
 });
 
-const bookRestaurantHandler: ToolHandler = async (params: any) => {
+const bookRestaurantHandler: ToolHandler = async (params) => {
     const { restaurantName, date, time, partySize, specialRequests } =
         params as z.infer<typeof BookRestaurantParams>;
 
     const hasTheForkKey = !!process.env.THEFORK_API_KEY;
 
     if (hasTheForkKey) {
-        // Mode A: API partenaire (TheFork/OpenTable)
-        // TODO: Implement when API access is granted
+        // Mode A: API partenaire (TheFork/OpenTable) — PAS ENCORE IMPLÉMENTÉE.
+        //
+        // Cette branche renvoyait « Réservation confirmée via TheFork » alors
+        // qu'aucun appel n'était fait. Poser la clé d'API suffisait donc à
+        // faire croire à une réservation inexistante — et quelqu'un se serait
+        // présenté au restaurant. Échouer est la seule réponse honnête tant
+        // que l'intégration n'existe pas.
         return {
-            success: true,
-            data: {
-                method: "api",
-                status: "confirmed",
-                confirmation: `Réservation confirmée via TheFork`,
-                details: { restaurantName, date, time, partySize },
-            },
+            success: false,
+            error:
+                "L'intégration TheFork n'est pas implémentée : aucune réservation n'a été faite. " +
+                "Retirez THEFORK_API_KEY pour obtenir le guide de réservation assistée.",
         };
     }
 
@@ -290,6 +299,9 @@ export function registerRestaurantTools() {
         intent: "search_restaurants",
         paramSchema: SearchRestaurantsParams,
         requiresConfirmation: false, // Search is safe
+        // Peut être réel : avec GOOGLE_PLACES_API_KEY la recherche est vraie.
+        // Le mode dégradé se signale lui-même à l'exécution.
+        simulated: false,
         handler: searchRestaurantsHandler,
         timeout: 10000,
         retries: 1,
@@ -301,6 +313,10 @@ export function registerRestaurantTools() {
         intent: "book_restaurant",
         paramSchema: BookRestaurantParams,
         requiresConfirmation: true, // MUST confirm before booking
+        // Aucune branche ne réserve réellement aujourd'hui : le mode API n'est
+        // pas implémenté, et le mode assisté ne fait que guider l'utilisateur.
+        // À repasser à false le jour où TheFork est réellement branché.
+        simulated: true,
         handler: bookRestaurantHandler,
         timeout: 15000,
         retries: 0,

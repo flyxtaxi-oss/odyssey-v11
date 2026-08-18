@@ -1,5 +1,6 @@
 import { MetadataRoute } from 'next'
 import { getVisaCountrySlugs } from '@/lib/visa-countries'
+import { getCitySlugs } from '@/lib/maroc-data'
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://odyssey-ai.app'
 
@@ -12,11 +13,26 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: '/simulator', priority: 0.9, changeFrequency: 'weekly' },
     { path: '/simulator/predict', priority: 0.8, changeFrequency: 'weekly' },
     { path: '/visa', priority: 0.85, changeFrequency: 'weekly' },
+    { path: '/maroc', priority: 0.95, changeFrequency: 'weekly' },
+    { path: '/maroc/parcours', priority: 0.9, changeFrequency: 'weekly' },
+    { path: '/maroc/serenite', priority: 0.9, changeFrequency: 'weekly' },
+    { path: '/maroc/veille', priority: 0.9, changeFrequency: 'daily' },
+    { path: '/maroc/comparateur', priority: 0.9, changeFrequency: 'weekly' },
+    { path: '/maroc/transfert', priority: 0.9, changeFrequency: 'weekly' },
+    { path: '/maroc/succession', priority: 0.85, changeFrequency: 'weekly' },
     { path: '/safezone', priority: 0.8, changeFrequency: 'weekly' },
     { path: '/skills', priority: 0.8, changeFrequency: 'weekly' },
     { path: '/language', priority: 0.7, changeFrequency: 'weekly' },
     { path: '/login', priority: 0.5, changeFrequency: 'monthly' },
     { path: '/settings', priority: 0.3, changeFrequency: 'monthly' },
+    // Les pages légales sont listées volontairement. Elles ne visent aucun
+    // trafic, mais Apple et Google exigent une URL de politique de
+    // confidentialité publiquement atteignable avant d'accepter une
+    // soumission de store — et une URL absente du sitemap est indexée plus
+    // tard, voire pas du tout.
+    { path: '/legal/mentions', priority: 0.2, changeFrequency: 'yearly' },
+    { path: '/legal/cgu', priority: 0.2, changeFrequency: 'yearly' },
+    { path: '/legal/confidentialite', priority: 0.2, changeFrequency: 'yearly' },
   ]
 
   const staticEntries = staticRoutes.map((r) => ({
@@ -34,5 +50,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.75,
   }))
 
-  return [...staticEntries, ...visaEntries]
+  // Programmatic SEO: one page per Moroccan city
+  const marocEntries = getCitySlugs().map((slug) => ({
+    url: `${BASE_URL}/maroc/${slug}`,
+    lastModified: now,
+    changeFrequency: 'monthly' as const,
+    priority: 0.8,
+  }))
+
+  return [...staticEntries, ...visaEntries, ...marocEntries]
 }

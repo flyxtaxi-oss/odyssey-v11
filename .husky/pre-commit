@@ -1,0 +1,54 @@
+#!/usr/bin/env sh
+# ==============================================================================
+# PRE-COMMIT — uniquement ce qui est IRRÉVERSIBLE
+# ==============================================================================
+#
+# Un secret committé fuite vers tout l'historique et tous les clones : le
+# supprimer au commit suivant ne le retire pas, il faut le révoquer. C'est la
+# seule chose qui justifie de bloquer ici.
+#
+# Le typecheck, le lint et les tests vivent dans pre-push : ils prennent ~15 s,
+# et un hook lent au commit finit systématiquement contourné par `--no-verify`
+# — donc le garde secrets tomberait avec. Séparer les deux garde celui qui
+# compte toujours actif.
+
+set -e
+
+STAGED=$(git diff --cached --name-only --diff-filter=ACMR)
+[ -z "$STAGED" ] && exit 0
+
+# ── Fichiers sensibles par nom ────────────────────────────────────────────────
+LEAKS=$(echo "$STAGED" | grep -E '(^|/)\.env($|\.)|\.(pem|key|p12|keystore)$|(^|/)id_rsa' | grep -vE '\.(example|sample)$' || true)
+if [ -n "$LEAKS" ]; then
+  echo ""
+  echo "🚨 COMMIT BLOQUÉ — fichier sensible détecté :"
+  echo "$LEAKS" | sed 's/^/     /'
+  echo ""
+  echo "   Retire-le de l'index :  git restore --staged <fichier>"
+  echo "   Et vérifie .gitignore."
+  exit 1
+fi
+
+# ── Clés en clair ajoutées dans du code ───────────────────────────────────────
+#
+# Les classes incluent `_` et `-` : les clés modernes en contiennent
+# (`sk-proj-…`, `github_pat_…`). Un motif limité à [A-Za-z0-9] s'arrête au
+# premier tiret et ne détecte rien — c'est exactement le cas qui a fait échouer
+# la première version de ce hook.
+# La clé API web Firebase de jarvis-53b7c est publique par design (embarquée
+# dans le bundle client ; l'accès est contrôlé par les domaines autorisés de
+# Firebase Auth et par firestore.rules). Elle est déjà dans l'historique git,
+# la bloquer empêcherait toute modification de src/lib/firebase.ts.
+PUBLIC_FIREBASE_WEB_KEY='AIzaSyDXch5wQxmCzJJ8MttAly0fD_Ej09iUu8o'
+INLINE=$(git diff --cached -U0 -- $STAGED 2>/dev/null \
+  | grep -E '^\+' \
+  | grep -oE '(sk-[A-Za-z0-9_-]{20,}|ghp_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|AIza[A-Za-z0-9_-]{30,}|xox[baprs]-[A-Za-z0-9-]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY-----)' \
+  | grep -vxF "$PUBLIC_FIREBASE_WEB_KEY" \
+  | head -3 || true)
+if [ -n "$INLINE" ]; then
+  echo ""
+  echo "🚨 COMMIT BLOQUÉ — ce qui ressemble à une clé en clair a été ajouté."
+  echo "   (valeur non affichée volontairement)"
+  echo "   Déplace-la dans .env.local, puis révoque-la si elle a déjà servi."
+  exit 1
+fi

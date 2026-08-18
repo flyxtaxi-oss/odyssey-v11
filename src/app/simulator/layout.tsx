@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Simulateur de Trajectoire — Compare 50+ pays | Odyssey",
+  title: "Simulateur — Compare ton pouvoir d'achat | Odyssey",
   description:
-    "Compare fiscalité, coût de la vie, visas et projections financières dans 50+ pays. Simule ta trajectoire d'expatriation avec l'IA en 2 minutes.",
+    "Compare salaire net, impôts et coût de la vie entre la France et 6 destinations d'expatriation.",
   alternates: { canonical: "/simulator" },
   openGraph: {
-    title: "Simulateur de Trajectoire — Compare 50+ pays",
+    title: "Simulateur — Compare ton pouvoir d'achat",
     description: "Compare fiscalité, coût de la vie et visas par pays.",
     url: "/simulator",
   },

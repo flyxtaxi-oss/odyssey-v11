@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { collection, query, where, orderBy, limit, getDocs } from "firebase/firestore";
-import { db, COLLECTIONS } from "@/lib/firebase";
-import { authenticateRequest } from "@/lib/auth-middleware";
+import { COLLECTIONS } from "@/lib/firebase";
+import { serverDb } from "@/lib/firestore-server";
+import { authenticateRequest, enforceRateLimit } from "@/lib/auth-middleware";
 import { getSecurityHeaders } from "@/lib/security";
 
 // ==============================================================================
@@ -9,6 +9,10 @@ import { getSecurityHeaders } from "@/lib/security";
 // ==============================================================================
 
 export async function GET(req: NextRequest) {
+    // Each call fans out to several Firestore reads, which are billed.
+    const limited = await enforceRateLimit(req);
+    if (limited) return limited;
+
     try {
         const auth = await authenticateRequest(req);
         if (!auth.success) {
@@ -19,18 +23,18 @@ export async function GET(req: NextRequest) {
         const now = new Date();
         const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         const weekLabel = `S${getWeekNumber(now)} (${formatDate(weekAgo)} - ${formatDate(now)})`;
+        const db = await serverDb();
 
         // 1. Fetch this week's checkins
         let checkins: Array<Record<string, unknown>> = [];
         try {
-            const checkinQuery = query(
-                collection(db, COLLECTIONS.CHECKINS),
-                where("user_id", "==", userId),
-                where("created_at", ">=", weekAgo.toISOString()),
-                orderBy("created_at", "desc"),
-                limit(7)
-            );
-            const snap = await getDocs(checkinQuery);
+            const snap = await db
+                .collection(COLLECTIONS.CHECKINS)
+                .where("user_id", "==", userId)
+                .where("created_at", ">=", weekAgo.toISOString())
+                .orderBy("created_at", "desc")
+                .limit(7)
+                .get();
             checkins = snap.docs.map(d => d.data());
         } catch { /* ignore */ }
 
@@ -45,12 +49,11 @@ export async function GET(req: NextRequest) {
         const accomplishments: string[] = [];
         let actionsCompleted = 0;
         try {
-            const missionsQuery = query(
-                collection(db, COLLECTIONS.SKILL_MISSIONS),
-                where("user_id", "==", userId),
-                where("is_completed", "==", true)
-            );
-            const missionsSnap = await getDocs(missionsQuery);
+            const missionsSnap = await db
+                .collection(COLLECTIONS.SKILL_MISSIONS)
+                .where("user_id", "==", userId)
+                .where("is_completed", "==", true)
+                .get();
             const recentMissions = missionsSnap.docs
                 .map(d => d.data())
                 .filter(m => {
@@ -65,11 +68,10 @@ export async function GET(req: NextRequest) {
 
         // 3. Fetch skills progress
         try {
-            const tracksQuery = query(
-                collection(db, COLLECTIONS.SKILL_TRACKS),
-                where("user_id", "==", userId)
-            );
-            const tracksSnap = await getDocs(tracksQuery);
+            const tracksSnap = await db
+                .collection(COLLECTIONS.SKILL_TRACKS)
+                .where("user_id", "==", userId)
+                .get();
             const tracks = tracksSnap.docs.map(d => d.data());
             for (const t of tracks) {
                 if ((t.progress_percentage || 0) > 50) {

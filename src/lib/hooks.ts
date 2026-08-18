@@ -10,10 +10,14 @@ import {
   orderBy,
   limit,
   onSnapshot,
+  type Query,
+  type QueryConstraint,
+  type DocumentData,
 } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { db, COLLECTIONS } from "./firebase";
 import { offlineDB } from "./offline-db";
+import { apiFetch } from "./api-client";
 
 // ==============================================================================
 // Custom Hooks — Data Layer for Odyssey.ai
@@ -27,7 +31,7 @@ type FetchState<T> = {
 };
 
 /** Generic fetcher hook with Firestore */
-export function useApi<T>(collectionName: string, docId?: string, constraints?: any[]) {
+export function useApi<T>(collectionName: string, docId?: string, constraints?: QueryConstraint[]) {
   const [state, setState] = useState<FetchState<T>>({
     data: null,
     error: null,
@@ -48,13 +52,13 @@ export function useApi<T>(collectionName: string, docId?: string, constraints?: 
         }
       } else {
         // Collection query
-        let q = collection(db, collectionName);
+        let q: Query<DocumentData> = collection(db, collectionName);
         if (constraints && constraints.length > 0) {
-          q = query(q, ...constraints) as any;
+          q = query(q, ...constraints);
         }
         const snapshot = await getDocs(q);
-        const data = snapshot.docs.map((d) => ({ id: d.id, ...d.data() })) as T[];
-        setState({ data: data as any, error: null, isLoading: false });
+        const data = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+        setState({ data: data as unknown as T, error: null, isLoading: false });
       }
     } catch (err) {
       setState((prev) => ({
@@ -119,11 +123,19 @@ export function usePosts() {
     isLoading: true,
   });
 
+  // Runs once: it opens a Firestore onSnapshot subscription, so re-running on
+  // every state change would tear down and re-create the listener on each
+  // incoming update. The `state.data` read below was the only thing pulling
+  // state into this effect, and it was reading a value captured at first
+  // render — always stale. The setState updater at the end of this block
+  // already performs the same "don't overwrite live data" check against fresh
+  // state, so dropping the read makes the effect correct AND honestly
+  // dependency-free.
   useEffect(() => {
     // Try loading from IndexedDB cache first for instant display
     offlineDB.init().then(async () => {
       const cached = await offlineDB.getCachedPosts<Record<string, unknown>>();
-      if (cached.length > 0 && !state.data) {
+      if (cached.length > 0) {
         const posts = cached.map((data) => ({
           id: data.id as string,
           author: typeof data.author === 'object' ? data.author as { name: string; badge: string; avatar: string } : {
@@ -216,35 +228,45 @@ export function usePosts() {
     return () => unsubscribe();
   }, []);
 
+  /**
+   * Publier un post passe OBLIGATOIREMENT par /api/posts.
+   *
+   * Cette fonction écrivait directement dans Firestore en posant elle-même
+   * `is_verified: true` et `toxicity_score: 0.1` — c'est-à-dire que le client
+   * rendait son propre verdict de modération, sur un fil public. La modération
+   * serveur (checkPromptInjection + moderateContent) était contournable par
+   * quiconque, et les règles Firestore l'autorisaient.
+   *
+   * Le fil est désormais fermé en écriture côté client ; seul l'Admin SDK, donc
+   * la route API, peut écrire — et elle modère avant.
+   */
   const createPost = useCallback(async (content: string) => {
     const auth = getAuth();
     const user = auth.currentUser;
 
     if (!user) throw new Error("Vous devez être connecté pour publier.");
 
-    const postRef = doc(collection(db, COLLECTIONS.POSTS));
-    const postData = {
-      author_id: user.uid,
-      author_name: user.displayName || user.email?.split("@")[0] || "Anonyme",
-      author_avatar: (user.displayName || user.email?.[0] || "A").toUpperCase(),
-      author_badge: "Membre",
-      content,
-      likes: 0,
-      comments: 0,
-      is_verified: true,
-      toxicity_score: 0.1,
-      created_at: new Date().toISOString(),
-    };
-
-    if (navigator.onLine) {
-      await setDoc(postRef, postData);
-    } else {
-      // Queue for sync when back online
-      await offlineDB.put("posts", { id: postRef.id, ...postData });
-      await offlineDB.addToSyncQueue("posts", "create", { id: postRef.id, ...postData });
+    if (!navigator.onLine) {
+      // Un post hors-ligne ne peut pas être modéré : on le met en file plutôt
+      // que de le publier non vérifié. La reprise devra le rejouer via l'API.
+      const localId = `local_${Date.now()}`;
+      await offlineDB.addToSyncQueue("posts", "create", { id: localId, content });
+      return { id: localId, queued: true };
     }
 
-    return { id: postRef.id };
+    const res = await apiFetch("/api/posts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content }),
+    });
+
+    if (!res.ok) {
+      const detail = await res.json().catch(() => ({}));
+      throw new Error(detail.error || "Publication refusée.");
+    }
+
+    const created = await res.json();
+    return { id: created.post?.id as string };
   }, []);
 
   return {

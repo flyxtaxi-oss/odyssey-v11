@@ -67,7 +67,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               initial={{ opacity: 0, x: 50 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 50 }}
-              style={{ background: backgrounds[toast.type], border: `1px solid var(--border)`, borderRadius: "0.75rem", padding: "1rem", display: "flex", alignItems: "flex-start", gap: "0.75rem" }}
+              // --border does not exist (the scale is --border-0..3), so this
+              // declaration was invalid and toasts rendered with no border at
+              // all, blending into whatever was behind them.
+              style={{ background: backgrounds[toast.type], border: `1px solid var(--border-1)`, borderRadius: "0.75rem", padding: "1rem", display: "flex", alignItems: "flex-start", gap: "0.75rem" }}
             >
               {icons[toast.type]}
               <div style={{ flex: 1 }}>

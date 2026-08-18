@@ -1,98 +1,210 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+
     // ========================================================================
-    // PROFILES - Users can read their own profile, public profiles readable
+    // HELPERS
     // ========================================================================
-    match /profiles/{userId} {
-      // Anyone can read profiles (for showing user info)
-      allow read: if true;
-      
-      // Users can only write their own profile
-      allow write: if request.auth != null && request.auth.uid == userId;
+    function isSignedIn() {
+      return request.auth != null;
     }
-    
+
+    // Le document existant appartient à l'appelant.
+    function ownsExisting() {
+      return isSignedIn() && resource.data.user_id == request.auth.uid;
+    }
+
+    // Le document créé est attribué à l'appelant — jamais à quelqu'un d'autre.
+    function createsAsSelf() {
+      return isSignedIn() && request.resource.data.user_id == request.auth.uid;
+    }
+
+    // user_id ne change JAMAIS après création : un update qui réécrit le
+    // propriétaire est un transfert de données entre comptes.
+    function userIdImmutable() {
+      return request.resource.data.user_id == resource.data.user_id;
+    }
+
     // ========================================================================
-    // SIMULATIONS - Users can only access their own simulations
+    // PROFILES - lecture/écriture propriétaire uniquement (RGPD : email).
+    // Server routes use firebase-admin, which bypasses these rules.
+    // ========================================================================
+    // Champs de privilège : jamais posés ni modifiés par le propriétaire du
+    // document. Seul l'Admin SDK (routes serveur, webhook Stripe) les écrit.
+    //
+    // `role` protège l'administration. `plan`, `planStatus`, `stripeCustomerId`
+    // et `stripeSubscriptionId` protègent le revenu : le SDK client écrit dans
+    // Firestore avec l'identité de l'utilisateur, donc sans ce verrou n'importe
+    // qui ouvre la console de son navigateur et se pose `plan: "pro_max"`.
+    // L'abonnement deviendrait déclaratif, et le paiement facultatif.
+    function privilegedFieldUnset(field) {
+      return !(field in request.resource.data);
+    }
+    function privilegedFieldUnchanged(field) {
+      return !(field in request.resource.data)
+        || (field in resource.data && request.resource.data[field] == resource.data[field]);
+    }
+
+    match /profiles/{userId} {
+      allow read: if isSignedIn() && request.auth.uid == userId;
+
+      allow create: if isSignedIn()
+        && request.auth.uid == userId
+        && privilegedFieldUnset('role')
+        && privilegedFieldUnset('plan')
+        && privilegedFieldUnset('planStatus')
+        && privilegedFieldUnset('stripeCustomerId')
+        && privilegedFieldUnset('stripeSubscriptionId');
+
+      allow update: if isSignedIn()
+        && request.auth.uid == userId
+        && privilegedFieldUnchanged('role')
+        && privilegedFieldUnchanged('plan')
+        && privilegedFieldUnchanged('planStatus')
+        && privilegedFieldUnchanged('stripeCustomerId')
+        && privilegedFieldUnchanged('stripeSubscriptionId');
+
+      allow delete: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    // ========================================================================
+    // SIMULATIONS - propriétaire uniquement
     // ========================================================================
     match /simulations/{simulationId} {
-      // Only authenticated users can read their simulations
-      allow read: if request.auth != null && resource.data.user_id == request.auth.uid;
-      
-      // Only authenticated users can create simulations
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.user_id;
-      
-      // Users can only update/delete their own simulations
-      allow update, delete: if request.auth != null && resource.data.user_id == request.auth.uid;
+      allow read: if ownsExisting();
+      allow create: if createsAsSelf();
+      allow update: if ownsExisting() && userIdImmutable();
+      allow delete: if ownsExisting();
     }
-    
+
     // ========================================================================
-    // POSTS - Public read, authenticated create, own posts only for edit/delete
+    // PREDICTIONS - rapports strictement privés à leur auteur
+    // ========================================================================
+    match /predictions/{predictionId} {
+      allow read: if ownsExisting();
+      allow create: if createsAsSelf();
+      allow update: if ownsExisting() && userIdImmutable();
+      allow delete: if ownsExisting();
+    }
+
+    // ========================================================================
+    // POSTS - lecture publique, ÉCRITURE SERVEUR UNIQUEMENT.
+    //
+    // Le fil est public ET modéré : /api/posts fait tourner checkPromptInjection
+    // et moderateContent, puis écrit `is_verified` et `toxicity_score`.
+    // Tant que le client pouvait écrire ici directement, il posait lui-même son
+    // propre verdict de modération (`is_verified: true`) — la modération
+    // devenait décorative, sur une collection lisible par tout le monde.
+    //
+    // Les écritures légitimes passent par l'Admin SDK, qui contourne ces règles.
+    // Fermer le client est donc sans effet sur le produit, et supprime le
+    // contournement.
     // ========================================================================
     match /posts/{postId} {
-      // Anyone can read posts
       allow read: if true;
-      
-      // Only authenticated users can create posts
-      allow create: if request.auth != null;
-      
-      // Users can only edit/delete their own posts
-      allow update, delete: if request.auth != null && resource.data.author_id == request.auth.uid;
+      allow write: if false;
     }
-    
+
     // ========================================================================
-    // SKILL TRACKS & MISSIONS - User-specific data
+    // SKILL TRACKS & MISSIONS - user-specific data
     // ========================================================================
     match /skill_tracks/{trackId} {
-      allow read: if request.auth != null && resource.data.user_id == request.auth.uid;
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.user_id;
-      allow update, delete: if request.auth != null && resource.data.user_id == request.auth.uid;
+      allow read: if ownsExisting();
+      allow create: if createsAsSelf();
+      allow update: if ownsExisting() && userIdImmutable();
+      allow delete: if ownsExisting();
     }
-    
+
     match /skill_missions/{missionId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null && resource.data.user_id == request.auth.uid;
-      allow delete: if request.auth != null && resource.data.user_id == request.auth.uid;
+      allow read: if ownsExisting();
+      allow create: if createsAsSelf();
+      allow update: if ownsExisting() && userIdImmutable();
+      allow delete: if ownsExisting();
     }
-    
+
     // ========================================================================
-    // LANGUAGE PROGRESS - User-specific learning data
+    // LANGUAGE PROFILES / PROGRESS - user-specific learning data
     // ========================================================================
+    match /language_profiles/{profileId} {
+      allow read: if ownsExisting();
+      allow create: if createsAsSelf();
+      allow update: if ownsExisting() && userIdImmutable();
+      allow delete: if ownsExisting();
+    }
+
     match /language_progress/{progressId} {
-      allow read: if request.auth != null && resource.data.user_id == request.auth.uid;
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.user_id;
-      allow update, delete: if request.auth != null && resource.data.user_id == request.auth.uid;
+      allow read: if ownsExisting();
+      allow create: if createsAsSelf();
+      allow update: if ownsExisting() && userIdImmutable();
+      allow delete: if ownsExisting();
     }
-    
+
     // ========================================================================
-    // CHECKINS - Daily check-ins per user
+    // CHECKINS - daily check-ins per user
     // ========================================================================
     match /checkins/{checkinId} {
-      allow read: if request.auth != null && resource.data.user_id == request.auth.uid;
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.user_id;
-      allow update, delete: if request.auth != null && resource.data.user_id == request.auth.uid;
+      allow read: if ownsExisting();
+      allow create: if createsAsSelf();
+      allow update: if ownsExisting() && userIdImmutable();
+      allow delete: if ownsExisting();
     }
-    
+
     // ========================================================================
-    // AUDIT LOG - System logs (readable by admins only)
+    // VISAS - visa/stay tracking per user
+    // ========================================================================
+    match /visas/{visaId} {
+      allow read: if ownsExisting();
+      allow create: if createsAsSelf();
+      allow update: if ownsExisting() && userIdImmutable();
+      allow delete: if ownsExisting();
+    }
+
+    // ========================================================================
+    // AUDIT LOG - append-only, attribué à soi-même uniquement.
+    // Avant : n'importe quel utilisateur authentifié pouvait créer une entrée
+    // d'audit attribuée à quelqu'un d'autre — un log falsifiable n'est pas un
+    // log d'audit.
     // ========================================================================
     match /audit_log/{logId} {
-      // Only authenticated users can read their own audit logs
-      allow read: if request.auth != null && resource.data.user_id == request.auth.uid;
-      allow create: if request.auth != null;
+      allow read: if ownsExisting();
+      allow create: if createsAsSelf();
       // No update or delete for audit logs
     }
-    
+
     // ========================================================================
-    // CONVERSATIONS - Chat history per user
+    // CONVERSATIONS - chat history per user
     // ========================================================================
     match /conversations/{conversationId} {
-      allow read: if request.auth != null && resource.data.user_id == request.auth.uid;
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.user_id;
-      allow update: if request.auth != null && resource.data.user_id == request.auth.uid;
-      allow delete: if request.auth != null && resource.data.user_id == request.auth.uid;
+      allow read: if ownsExisting();
+      allow create: if createsAsSelf();
+      allow update: if ownsExisting() && userIdImmutable();
+      allow delete: if ownsExisting();
+    }
+
+    // ========================================================================
+    // RATE LIMITS - compteurs de quota, serveur uniquement (Admin SDK).
+    // Aucun accès client : les clés sont hachées et ne portent aucune donnée
+    // personnelle exploitable, mais un client ne doit ni les lire ni les
+    // réinitialiser.
+    // ========================================================================
+    match /rate_limits/{bucketId} {
+      allow read, write: if false;
+    }
+
+    // ========================================================================
+    // USAGE COUNTERS - consommation mensuelle par utilisateur (Admin SDK seul).
+    // Un client qui pourrait écrire ici remettrait son compteur à zéro et
+    // rendrait les quotas d'abonnement sans effet. Il ne peut pas non plus les
+    // lire : l'état du quota est exposé par une route serveur, qui décide de
+    // ce qu'elle divulgue.
+    // ========================================================================
+    match /usage_counters/{counterId} {
+      allow read, write: if false;
+    }
+
+    // Refus par défaut : toute collection non listée est inaccessible.
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

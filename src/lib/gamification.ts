@@ -2,7 +2,7 @@
 // GAMIFICATION — Leaderboard, badges, achievements, XP system
 // ==============================================================================
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 
 export interface User {
   id: string;
@@ -79,7 +79,10 @@ export const BADGE_DEFINITIONS: (Omit<Badge, 'earned_at'> & { rarity: Badge['rar
 export type LeaderboardPeriod = 'weekly' | 'monthly' | 'all_time';
 
 export function useGamification(currentUserId?: string) {
-  const [users, setUsers] = useState<User[]>([
+  // Demo fixtures. This hook is not wired into any page yet; if it ever is,
+  // these invented profiles must be replaced by real Firestore users before
+  // a leaderboard of fictional people reaches anyone.
+  const [users] = useState<User[]>([
     {
       id: 'user_1',
       name: 'Marco',
@@ -212,7 +215,10 @@ export function useGamification(currentUserId?: string) {
   }, [addXP]);
 
   // Get leaderboard
-  const getLeaderboard = useCallback((period: LeaderboardPeriod = 'weekly'): LeaderboardEntry[] => {
+  // `period` is accepted for API stability but not yet applied: XP is stored
+  // as a running total with no per-period history, so weekly and all-time
+  // would return identical rows. Filtering needs dated XP events first.
+  const getLeaderboard = useCallback((_period: LeaderboardPeriod = 'weekly'): LeaderboardEntry[] => {
     const allUsers = [...users, currentUser].sort((a, b) => b.xp - a.xp);
     
     return allUsers.map((user, index) => ({

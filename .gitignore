@@ -37,6 +37,10 @@ firebase-debug.log*
 # firebase
 .firebase/
 .firebaserc.local
+firestore-debug.log*
+ui-debug.log*
+database-debug.log*
+pubsub-debug.log*
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
@@ -80,3 +84,4 @@ next-env.d.ts
 .zencoder/
 .env*.local
 .kilo/
+.vscode/

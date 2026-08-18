@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { collection, doc, setDoc, getDocs, query, where, orderBy, limit } from "firebase/firestore";
-import { db, COLLECTIONS } from "@/lib/firebase";
-import { authenticateRequest } from "@/lib/auth-middleware";
+import { COLLECTIONS } from "@/lib/firebase";
+import { serverDb } from "@/lib/firestore-server";
+import { authenticateRequest, enforceRateLimit } from "@/lib/auth-middleware";
 import { getSecurityHeaders } from "@/lib/security";
 
 // ==============================================================================
@@ -15,22 +15,21 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ error: auth.error }, { status: auth.status, headers: getSecurityHeaders() });
         }
 
-        const profilesQuery = query(
-            collection(db, COLLECTIONS.LANGUAGE_PROFILES),
-            where("user_id", "==", auth.user.uid)
-        );
-        const profilesSnap = await getDocs(profilesQuery);
+        const db = await serverDb();
+        const profilesSnap = await db
+            .collection(COLLECTIONS.LANGUAGE_PROFILES)
+            .where("user_id", "==", auth.user.uid)
+            .get();
         const profiles = profilesSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
         const progressData: Array<Record<string, unknown>> = [];
         for (const profile of profiles) {
-            const progressQuery = query(
-                collection(db, COLLECTIONS.LANGUAGE_PROGRESS),
-                where("user_id", "==", auth.user.uid),
-                where("language", "==", (profile as Record<string, unknown>).target_language),
-                orderBy("next_review_at", "asc")
-            );
-            const progressSnap = await getDocs(progressQuery);
+            const progressSnap = await db
+                .collection(COLLECTIONS.LANGUAGE_PROGRESS)
+                .where("user_id", "==", auth.user.uid)
+                .where("language", "==", (profile as Record<string, unknown>).target_language)
+                .orderBy("next_review_at", "asc")
+                .get();
             progressData.push(...progressSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
         }
 
@@ -45,6 +44,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+    const limited = await enforceRateLimit(req);
+    if (limited) return limited;
+
     try {
         const auth = await authenticateRequest(req);
         if (!auth.success) {
@@ -52,6 +54,7 @@ export async function POST(req: NextRequest) {
         }
 
         const { action, payload } = await req.json();
+        const db = await serverDb();
 
         switch (action) {
             case "placement_test":
@@ -81,14 +84,13 @@ export async function POST(req: NextRequest) {
 
             case "srs_review": {
                 const today = new Date().toISOString();
-                const reviewQuery = query(
-                    collection(db, COLLECTIONS.LANGUAGE_PROGRESS),
-                    where("user_id", "==", auth.user.uid),
-                    where("next_review_at", "<=", today),
-                    orderBy("next_review_at", "asc"),
-                    limit(20)
-                );
-                const reviewSnap = await getDocs(reviewQuery);
+                const reviewSnap = await db
+                    .collection(COLLECTIONS.LANGUAGE_PROGRESS)
+                    .where("user_id", "==", auth.user.uid)
+                    .where("next_review_at", "<=", today)
+                    .orderBy("next_review_at", "asc")
+                    .limit(20)
+                    .get();
                 const cardsDue = reviewSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
                 return NextResponse.json({ success: true, xp_earned: 50, cards_due: cardsDue.length, cards: cardsDue }, { headers: getSecurityHeaders() });
@@ -96,13 +98,32 @@ export async function POST(req: NextRequest) {
 
             case "complete_review": {
                 const { card_id, quality, current_level } = payload;
-                const cardRef = doc(db, COLLECTIONS.LANGUAGE_PROGRESS, card_id);
+
+                if (typeof card_id !== "string" || !card_id) {
+                    return NextResponse.json({ error: "card_id requis" }, { status: 400, headers: getSecurityHeaders() });
+                }
+
+                const cardRef = db.collection(COLLECTIONS.LANGUAGE_PROGRESS).doc(card_id);
+
+                // Vérifier la propriété AVANT d'écrire. Sans ce contrôle,
+                // n'importe quel utilisateur authentifié pouvait réécrire la
+                // fiche de révision d'un autre en devinant son id (IDOR en
+                // écriture) — même faille que celle déjà corrigée dans
+                // /api/skills (update_mission).
+                const existingSnap = await cardRef.get();
+                if (!existingSnap.exists) {
+                    return NextResponse.json({ error: "Carte introuvable" }, { status: 404, headers: getSecurityHeaders() });
+                }
+                if (existingSnap.data()?.user_id !== auth.user.uid) {
+                    return NextResponse.json({ error: "Accès refusé" }, { status: 403, headers: getSecurityHeaders() });
+                }
+
                 const baseInterval = 1;
                 const multiplier = quality >= 4 ? 2.5 : quality >= 3 ? 1.5 : 0.5;
                 const nextReview = new Date();
                 nextReview.setDate(nextReview.getDate() + Math.floor(baseInterval * multiplier));
 
-                await setDoc(cardRef, {
+                await cardRef.set({
                     next_review_at: nextReview.toISOString(),
                     mastery_level: Math.min(5, (current_level || 0) + (quality >= 3 ? 1 : -1)),
                     updated_at: new Date().toISOString(),
@@ -122,7 +143,7 @@ export async function POST(req: NextRequest) {
                 }, { headers: getSecurityHeaders() });
 
             case "create_profile": {
-                const profileRef = doc(collection(db, COLLECTIONS.LANGUAGE_PROFILES));
+                const profileRef = db.collection(COLLECTIONS.LANGUAGE_PROFILES).doc();
                 const profileData = {
                     id: profileRef.id,
                     user_id: auth.user.uid,
@@ -133,7 +154,7 @@ export async function POST(req: NextRequest) {
                     xp_points: 0,
                     created_at: new Date().toISOString(),
                 };
-                await setDoc(profileRef, profileData);
+                await profileRef.set(profileData);
 
                 return NextResponse.json({ success: true, profile: profileData }, { status: 201, headers: getSecurityHeaders() });
             }

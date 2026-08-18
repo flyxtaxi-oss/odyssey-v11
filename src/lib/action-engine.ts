@@ -24,7 +24,12 @@ export const ActionStatus = z.enum([
     "pending",      // Waiting for user confirmation
     "confirmed",    // User confirmed, ready to execute
     "executing",    // Tool is running
-    "completed",    // Done successfully
+    "completed",    // Done successfully — un effet réel a eu lieu
+    // Le code a tourné, mais AUCUN effet réel ne s'est produit : l'outil est
+    // une maquette. Statut distinct de "completed" parce que la différence
+    // compte pour l'utilisateur — croire qu'une table est réservée alors
+    // qu'elle ne l'est pas, c'est se présenter au restaurant pour rien.
+    "simulated",
     "failed",       // Error occurred
     "cancelled",    // User cancelled
 ]);
@@ -51,6 +56,10 @@ export type ActionPlan = z.infer<typeof ActionPlanSchema>;
 export const ActionReceiptSchema = z.object({
     id: z.string(),
     planId: z.string(),
+    // Chaque reçu appartient à un utilisateur. Sans ce champ, le store était
+    // global : n'importe quel utilisateur authentifié lisait les reçus
+    // (paramètres et résultats inclus) de tous les autres.
+    userId: z.string(),
     intent: ActionIntent,
     status: ActionStatus,
     toolName: z.string(),
@@ -60,6 +69,8 @@ export const ActionReceiptSchema = z.object({
     executedAt: z.string(),
     durationMs: z.number(),
     undoInstructions: z.string().optional(),
+    /** true quand aucun effet réel n'a eu lieu — l'outil est une maquette. */
+    simulated: z.boolean().default(false),
 });
 export type ActionReceipt = z.infer<typeof ActionReceiptSchema>;
 
@@ -70,6 +81,12 @@ export type ToolHandler = (params: Record<string, unknown>) => Promise<{
     data?: unknown;
     error?: string;
     undoInstructions?: string;
+    /**
+     * Permet à un outil de signaler, à l'exécution, qu'il n'a produit aucun
+     * effet réel — utile quand le même outil a un mode réel et un mode
+     * dégradé (clé API absente, par exemple).
+     */
+    simulated?: boolean;
 }>;
 
 export type ToolDefinition = {
@@ -81,6 +98,14 @@ export type ToolDefinition = {
     handler: ToolHandler;
     timeout: number; // ms
     retries: number;
+    /**
+     * L'outil produit-il un effet réel dans le monde ?
+     *
+     * Champ OBLIGATOIRE, et volontairement : le déclarer force à répondre à la
+     * question pour chaque outil ajouté. Un oubli deviendrait un outil qui
+     * annonce un succès sans rien faire — exactement le défaut qu'on corrige.
+     */
+    simulated: boolean;
 };
 
 // ─── Tool Registry ───────────────────────────────────────────────────────────
@@ -104,11 +129,22 @@ class ActionRegistry {
         return [...this.tools.values()];
     }
 
-    toManifest(): Array<{ name: string; description: string; intent: string }> {
+    // Le manifeste sert à décrire les outils au modèle ET à l'UI. Omettre
+    // `simulated` laisserait J.A.R.V.I.S. proposer « je réserve » pour un outil
+    // qui ne réserve rien.
+    toManifest(): Array<{
+        name: string;
+        description: string;
+        intent: string;
+        simulated: boolean;
+        requiresConfirmation: boolean;
+    }> {
         return this.list().map((t) => ({
             name: t.name,
             description: t.description,
             intent: t.intent,
+            simulated: t.simulated,
+            requiresConfirmation: t.requiresConfirmation,
         }));
     }
 }
@@ -117,10 +153,12 @@ export const actionRegistry = new ActionRegistry();
 
 // ─── Execute with timeout + retry ────────────────────────────────────────────
 
+type ToolResult = Awaited<ReturnType<ToolHandler>>;
+
 async function executeWithTimeout(
-    fn: () => Promise<{ success: boolean; data?: unknown; error?: string; undoInstructions?: string }>,
+    fn: () => Promise<ToolResult>,
     timeoutMs: number
-): Promise<{ success: boolean; data?: unknown; error?: string; undoInstructions?: string }> {
+): Promise<ToolResult> {
     return Promise.race([
         fn(),
         new Promise<{ success: boolean; error: string }>((_, reject) =>
@@ -129,18 +167,34 @@ async function executeWithTimeout(
     ]);
 }
 
+/**
+ * Run a registered tool.
+ *
+ * `options.confirmed` must be true for any tool declaring
+ * `requiresConfirmation`. That flag existed on every tool — `book_restaurant`
+ * sets it to true — but nothing ever read it: the check lived only in the route
+ * handler, and there it compared a boolean the CALLER had put in the request
+ * body. So the guard on a real-world booking was "the client says it is fine".
+ *
+ * Enforcing it here means the rule travels with the tool. A new call site
+ * cannot forget it, because forgetting it means the call is refused.
+ */
 export async function executeTool(
     toolName: string,
-    params: Record<string, unknown>
+    params: Record<string, unknown>,
+    options: { confirmed?: boolean; userId?: string } = {}
 ): Promise<ActionReceipt> {
     const tool = actionRegistry.get(toolName);
     const startTime = Date.now();
     const receiptId = `rcpt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    // L'identité vient toujours du token vérifié par la route, jamais du body.
+    const userId = options.userId ?? "";
 
     if (!tool) {
         return {
             id: receiptId,
             planId: "",
+            userId,
             intent: "search_info",
             status: "failed",
             toolName,
@@ -148,6 +202,25 @@ export async function executeTool(
             error: `Tool "${toolName}" not found in registry`,
             executedAt: new Date().toISOString(),
             durationMs: Date.now() - startTime,
+            simulated: false,
+        };
+    }
+
+    // A tool that changes something in the real world (a booking, a payment,
+    // a message) must not run on an unconfirmed call, whatever the route did.
+    if (tool.requiresConfirmation && !options.confirmed) {
+        return {
+            id: receiptId,
+            planId: "",
+            userId,
+            intent: tool.intent,
+            status: "failed",
+            toolName,
+            input: params,
+            error: `L'outil « ${toolName} » exige une confirmation explicite avant exécution.`,
+            executedAt: new Date().toISOString(),
+            durationMs: Date.now() - startTime,
+            simulated: false,
         };
     }
 
@@ -157,6 +230,7 @@ export async function executeTool(
         return {
             id: receiptId,
             planId: "",
+            userId,
             intent: tool.intent,
             status: "failed",
             toolName,
@@ -164,6 +238,7 @@ export async function executeTool(
             error: `Invalid parameters: ${validation.error.message}`,
             executedAt: new Date().toISOString(),
             durationMs: Date.now() - startTime,
+            simulated: false,
         };
     }
 
@@ -176,11 +251,17 @@ export async function executeTool(
                 tool.timeout
             );
 
+            // Un outil déclaré simulé — ou qui signale l'être à l'exécution —
+            // ne peut PAS produire "completed". Sinon le reçu, l'API et l'UI
+            // affirment tous qu'une action réelle a eu lieu.
+            const simulated = tool.simulated || result.simulated === true;
+
             return {
                 id: receiptId,
                 planId: "",
+                userId,
                 intent: tool.intent,
-                status: result.success ? "completed" : "failed",
+                status: result.success ? (simulated ? "simulated" : "completed") : "failed",
                 toolName,
                 input: params,
                 output: result.data,
@@ -188,6 +269,7 @@ export async function executeTool(
                 executedAt: new Date().toISOString(),
                 durationMs: Date.now() - startTime,
                 undoInstructions: result.undoInstructions,
+                simulated,
             };
         } catch (err) {
             lastError = err instanceof Error ? err.message : String(err);
@@ -200,10 +282,12 @@ export async function executeTool(
     return {
         id: receiptId,
         planId: "",
+        userId,
         intent: tool.intent,
         status: "failed",
         toolName,
         input: params,
+        simulated: tool.simulated,
         error: `Failed after ${tool.retries + 1} attempts: ${lastError}`,
         executedAt: new Date().toISOString(),
         durationMs: Date.now() - startTime,
@@ -211,16 +295,30 @@ export async function executeTool(
 }
 
 // ─── In-Memory Receipt Store ─────────────────────────────────────────────────
+// Scopé par utilisateur : la lecture exige l'uid vérifié de l'appelant.
+// (La persistance durable — Firestore — reste à faire ; ce store disparaît au
+// redémarrage et diffère entre instances serverless.)
 
 const receiptStore: ActionReceipt[] = [];
 
 export function storeReceipt(receipt: ActionReceipt) {
+    if (!receipt.userId) {
+        // Un reçu sans propriétaire ne doit jamais entrer dans le store : il
+        // serait soit invisible, soit attribuable à n'importe qui.
+        throw new Error("storeReceipt: receipt.userId est requis");
+    }
     receiptStore.unshift(receipt); // newest first
-    if (receiptStore.length > 100) receiptStore.pop(); // cap at 100
+    if (receiptStore.length > 500) receiptStore.pop(); // cap global
 }
 
-export function getReceipts(limit = 20): ActionReceipt[] {
-    return receiptStore.slice(0, limit);
+export function getReceipts(userId: string, limit = 20): ActionReceipt[] {
+    if (!userId) return [];
+    return receiptStore.filter((r) => r.userId === userId).slice(0, limit);
+}
+
+export function countReceipts(userId: string): number {
+    if (!userId) return 0;
+    return receiptStore.filter((r) => r.userId === userId).length;
 }
 
 // ─── Generate Plan ID ────────────────────────────────────────────────────────
@@ -244,16 +342,23 @@ actionRegistry.register({
         description: z.string().optional()
     }),
     requiresConfirmation: true, // Action destructrice/modificatrice = Confirmation Requise
+    // Aucun appel Google n'existe encore : rien n'est écrit dans un agenda.
+    simulated: true,
     timeout: 8000,
     retries: 1,
     handler: async (params) => {
-        console.log("📅 [Action Engine] Appel API Google Calendar simulé...", params);
-        // TODO: Remplacer par le vrai appel API Google (googleapis)
+        console.log("📅 [Action Engine] Google Calendar — maquette, aucun événement créé", params);
+        // TODO: brancher googleapis (OAuth + scopes minimaux) — voir Phase 9.
         await new Promise(resolve => setTimeout(resolve, 1000));
         return {
             success: true,
-            data: { eventId: `gcal_${Date.now()}`, status: "confirmed" },
-            undoInstructions: "DELETE /api/calendar/events/:id"
+            simulated: true,
+            data: {
+                simulation: true,
+                message:
+                    "Aucun événement n'a été créé : le connecteur Google Calendar n'est pas encore branché.",
+                aurait_cree: params,
+            },
         };
     }
 });
@@ -268,15 +373,24 @@ actionRegistry.register({
         date: z.string(), // YYYY-MM-DD
     }),
     requiresConfirmation: false, // Simple recherche = Pas besoin de confirmation
+    // Prix et horaires sont inventés : aucun appel Skyscanner n'existe. Les
+    // présenter comme réels, sur une app de conseil au départ, serait faire
+    // décider quelqu'un sur des chiffres fabriqués.
+    simulated: true,
     timeout: 10000,
     retries: 2,
     handler: async (params) => {
-        console.log("✈️ [Action Engine] Recherche Skyscanner simulée...", params);
+        console.log("✈️ [Action Engine] Skyscanner — maquette, données d'exemple", params);
         await new Promise(resolve => setTimeout(resolve, 1500));
         return {
             success: true,
+            simulated: true,
             data: {
-                flights: [
+                simulation: true,
+                message:
+                    "Données d'exemple : le connecteur Skyscanner n'est pas branché, ces vols et ces prix ne sont pas réels.",
+                recherche: params,
+                exemples: [
                     { airline: "TAP Portugal", price: 85, duration: "2h30", direct: true },
                     { airline: "Air France", price: 120, duration: "2h45", direct: true }
                 ]

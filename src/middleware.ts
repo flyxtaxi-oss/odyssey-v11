@@ -2,8 +2,13 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export function middleware(request: NextRequest) {
-    // Extract country from Vercel's Edge headers or fallback to 'FR'
-    const country = request.headers.get("x-vercel-ip-country") || "FR";
+    // Pays du visiteur. Cloudflare est en amont de Vercel : quand il proxyfie,
+    // c'est lui qui porte l'info (CF-IPCountry) et l'en-tête Vercel peut
+    // manquer. On lit les deux, Cloudflare d'abord.
+    const country =
+        request.headers.get("cf-ipcountry") ||
+        request.headers.get("x-vercel-ip-country") ||
+        "FR";
     const response = NextResponse.next();
 
     // Store user's country in a secure cookie
@@ -18,9 +23,11 @@ export function middleware(request: NextRequest) {
     response.headers.set("X-Content-Type-Options", "nosniff");
     response.headers.set("X-XSS-Protection", "1; mode=block");
     response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+    // microphone=(self) : J.A.R.V.I.S. propose une entrée vocale — la bloquer
+    // ici rendait la feature silencieusement inopérante. Le reste reste fermé.
     response.headers.set(
         "Permissions-Policy",
-        "camera=(), microphone=(), geolocation=(), payment=()"
+        "camera=(), microphone=(self), geolocation=(), payment=()"
     );
     response.headers.set(
         "Strict-Transport-Security",
@@ -30,11 +37,20 @@ export function middleware(request: NextRequest) {
         "Content-Security-Policy",
         [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
+            // 'unsafe-eval' n'est requis que par le tooling de dev (HMR,
+            // react-refresh). Le bundle Next.js de production n'en a pas
+            // besoin — le laisser affaiblissait la protection XSS pour rien.
+            process.env.NODE_ENV === "production"
+                ? "script-src 'self' 'unsafe-inline'"
+                : "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
             "font-src 'self' https://fonts.gstatic.com",
             "img-src 'self' data: blob: https:",
-            "connect-src 'self' https://*.supabase.co https://api.stepfun.com https://generativelanguage.googleapis.com https://*.firebaseio.com https://*.googleapis.com",
+            // No Supabase entry: the backend is Firebase. The old
+            // https://*.supabase.co origin was a leftover from an abandoned
+            // migration and widened the CSP for nothing.
+            "connect-src 'self' https://api.stepfun.com https://generativelanguage.googleapis.com https://*.firebaseio.com https://*.googleapis.com https://*.firebaseapp.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com",
+            "frame-src 'self' https://*.firebaseapp.com https://accounts.google.com",
             "frame-ancestors 'none'",
         ].join("; ")
     );

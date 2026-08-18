@@ -70,6 +70,70 @@ export function checkPromptInjection(input: string): InjectionCheckResult {
   };
 }
 
+// ─── Content Moderation (heuristic) ──────────────────────────────────────────
+// Deterministic toxicity scoring for community posts — replaces the previous
+// Math.random() placeholder. Structured so a hosted classifier (e.g. Perspective
+// API) can replace the heuristic later without changing callers.
+
+const TOXIC_TERMS: Array<{ pattern: RegExp; weight: number; category: string }> = [
+  { pattern: /\b(kill|murder|rape|behead|lynch)\b/i, weight: 0.6, category: "violence" },
+  { pattern: /\b(tuer|assassiner|violer|égorger)\b/i, weight: 0.6, category: "violence" },
+  { pattern: /\bi(?:'|’)?m going to (?:kill|hurt|destroy) you\b/i, weight: 0.85, category: "threat" },
+  { pattern: /\bje vais te (?:tuer|frapper|détruire|crever)\b/i, weight: 0.85, category: "threat" },
+  { pattern: /\b(?:suicide|kill myself|me suicider|me tuer)\b/i, weight: 0.5, category: "self_harm" },
+  { pattern: /\b(idiot|stupid|moron|imbecile|imbécile|connard|salaud|abruti|crétin)\b/i, weight: 0.3, category: "insult" },
+  { pattern: /\b(?:shut up|ferme[- ]?la|ta gueule|dégage)\b/i, weight: 0.35, category: "harassment" },
+  { pattern: /\b(scam|arnaque|escroc|fraude)\b/i, weight: 0.25, category: "spam" },
+];
+
+export type ModerationResult = {
+  toxicity_score: number; // 0 (clean) .. 1 (toxic)
+  categories: string[];
+  is_verified: boolean; // passes the community bar
+};
+
+export function moderateContent(input: string): ModerationResult {
+  const text = input || "";
+  const categories = new Set<string>();
+  let base = 0;
+
+  for (const { pattern, weight, category } of TOXIC_TERMS) {
+    if (pattern.test(text)) {
+      categories.add(category);
+      if (weight > base) base = weight;
+    }
+  }
+
+  // Each additional distinct toxic category compounds the score.
+  let score = base + Math.max(0, categories.size - 1) * 0.1;
+
+  // Structural signals: shouting, character spam, link spam.
+  const letters = text.replace(/[^a-zA-ZÀ-ÿ]/g, "");
+  if (letters.length >= 20) {
+    const caps = (text.match(/[A-ZÀ-Þ]/g) || []).length;
+    if (caps / letters.length > 0.6) {
+      score += 0.15;
+      categories.add("shouting");
+    }
+  }
+  if (/(.)\1{6,}/.test(text) || /[!?]{5,}/.test(text)) {
+    score += 0.1;
+    categories.add("spam");
+  }
+  if ((text.match(/https?:\/\//gi) || []).length > 2) {
+    score += 0.15;
+    categories.add("spam");
+  }
+
+  score = Math.min(1, Math.round(score * 100) / 100);
+
+  return {
+    toxicity_score: score,
+    categories: [...categories],
+    is_verified: score < 0.5,
+  };
+}
+
 // ─── Input Sanitization ──────────────────────────────────────────────────────
 
 export function sanitizeInput(input: string): string {

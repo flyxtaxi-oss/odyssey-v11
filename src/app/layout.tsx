@@ -1,6 +1,14 @@
 import type { Metadata, Viewport } from "next";
+import { Space_Grotesk, Manrope, Inter } from "next/font/google";
 import "./globals.css";
+
+// Polices auto-hébergées (plus d'@import Google Fonts bloquant le rendu).
+const fontDisplay = Space_Grotesk({ subsets: ["latin"], variable: "--font-display", display: "swap" });
+const fontBody = Manrope({ subsets: ["latin"], variable: "--font-body", display: "swap" });
+const fontLabel = Inter({ subsets: ["latin"], variable: "--font-label", display: "swap" });
 import Sidebar from "@/components/Sidebar";
+import { MotionProvider } from "@/components/MotionProvider";
+import { LocaleProvider } from "@/contexts/LocaleContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ToastProvider } from "@/components/Toast";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorker";
@@ -13,7 +21,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),
   title: "Odyssey.ai — Life Operating System pour expats francophones",
   description:
-    "Le premier Life Operating System dopé à l'IA. Expatriation, finance, carrière, réseau — tout piloté par J.A.R.V.I.S., ton intelligence artificielle personnelle. 50+ pays comparés.",
+    "Life Operating System pour expatriés francophones : 50 guides visa, comparateur fiscal, et un assistant IA en français.",
   keywords: [
     "expatriation",
     "digital nomad",
@@ -41,7 +49,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "Odyssey.ai — Le copilote IA des nomades francophones",
-    description: "Compare 50+ pays. Pilote tes visas. Coache-toi avec JARVIS. L'IA qui te fait économiser des milliers d'euros sur ton expatriation.",
+    description: "50 guides visa, un comparateur fiscal et coût de la vie, et J.A.R.V.I.S. pour répondre à tes questions de départ.",
     type: "website",
     locale: "fr_FR",
     alternateLocale: ["fr_CA", "fr_BE", "fr_CH"],
@@ -51,7 +59,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Odyssey.ai — Le copilote IA des nomades francophones",
-    description: "Compare 50+ pays, pilote tes visas, coache-toi avec JARVIS.",
+    description: "50 guides visa, comparateur fiscal, assistant IA en français.",
     creator: "@odysseyai",
   },
   robots: {
@@ -64,7 +72,10 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
-  manifest: "/manifest.json",
+  // src/app/manifest.ts is a Next route handler, which Next serves at
+  // /manifest.webmanifest. Pointing at /manifest.json returned a 404, so the
+  // PWA was not installable — no "Add to Home Screen" on iOS or Android.
+  manifest: "/manifest.webmanifest",
   other: {
     "geo.region": "FR",
     "geo.placename": "Paris",
@@ -85,10 +96,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr" suppressHydrationWarning>
+    <html lang="fr" suppressHydrationWarning data-scroll-behavior="smooth" className={`${fontDisplay.variable} ${fontBody.variable} ${fontLabel.variable}`}>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
@@ -108,17 +117,22 @@ export default function RootLayout({
               },
               inLanguage: "fr-FR",
               url: process.env.NEXT_PUBLIC_APP_URL || "https://odyssey-ai.app",
-              aggregateRating: {
-                "@type": "AggregateRating",
-                ratingValue: "4.8",
-                ratingCount: "127",
-              },
+              // No aggregateRating until real reviews exist. It previously
+              // declared 4.8/5 from 127 ratings — invented. Google reads this
+              // markup to render star ratings in search results, and fabricated
+              // review data violates its structured-data policy: it risks a
+              // manual action on the whole domain, not just a lost rich result.
             }),
           }}
         />
       </head>
       <body className="relative">
         <ThemeProvider>
+        {/* Honours the OS "reduce motion" setting for every framer-motion
+            animation — the CSS media query alone cannot stop JS-driven ones. */}
+        <MotionProvider>
+        {/* Locale — holds the UI language and hands `t` to components. */}
+        <LocaleProvider>
         {/* Firebase Auth Provider */}
         <AuthProvider>
           {/* Toast Notifications */}
@@ -136,10 +150,13 @@ export default function RootLayout({
 
             <div className="relative z-10 flex min-h-screen">
               <Sidebar />
-              {/* Spacer div to push content past the fixed sidebar */}
-              <div className="w-[300px] shrink-0" />
+              {/* Spacer that reserves room for the fixed sidebar. Only from
+                  `md` up: below that the sidebar is an off-canvas drawer, and
+                  an unconditional 300px here left 75px of content on a phone. */}
+              <div className="hidden md:block w-[300px] shrink-0" />
               <main className="flex-1 min-w-0">
-                <div className="max-w-[1100px] mx-auto px-8 py-10">
+                {/* Top padding on mobile clears the fixed hamburger button. */}
+                <div className="max-w-[1100px] mx-auto px-4 md:px-8 pt-20 md:pt-10 pb-10">
                   {children}
                 </div>
               </main>
@@ -149,6 +166,8 @@ export default function RootLayout({
             <CommandCenter />
           </ToastProvider>
         </AuthProvider>
+        </LocaleProvider>
+        </MotionProvider>
         </ThemeProvider>
         </body>
     </html>

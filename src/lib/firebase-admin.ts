@@ -65,23 +65,50 @@ adminDb = initialized.adminDb;
  */
 export async function verifyIdToken(token: string) {
   try {
-    // In development without service account, do basic validation
+    // Without a service account, there is NO cryptographic verification
+    // possible. Decoding the payload without checking the signature lets a
+    // forged JWT impersonate any user — a dev server exposed on a shared
+    // network (ou un NODE_ENV mal positionné) devenait un bypass d'auth
+    // complet. Fail closed partout, sauf opt-in explicite ET non-production.
     if (!process.env.FIREBASE_PRIVATE_KEY) {
-      // Parse and validate token structure without verification
+      // Firebase Auth Emulator : le SDK Admin sait dialoguer avec lui SANS
+      // credentials, et il valide réellement le token (émis par l'emulator).
+      // C'est la bonne façon de développer en local — pas le décodage aveugle
+      // ci-dessous. On refuse quand même en production : un
+      // FIREBASE_AUTH_EMULATOR_HOST qui traînerait dans l'environnement de
+      // prod redirigerait l'authentification vers une machine arbitraire.
+      if (process.env.FIREBASE_AUTH_EMULATOR_HOST && process.env.NODE_ENV !== "production") {
+        return await adminAuth.verifyIdToken(token);
+      }
+
+      const devBypassAllowed =
+        process.env.NODE_ENV !== "production" &&
+        process.env.ALLOW_DEV_UNVERIFIED_TOKENS === "true";
+
+      if (!devBypassAllowed) {
+        console.error(
+          "Firebase Admin: FIREBASE_PRIVATE_KEY manquante — vérification de token refusée. " +
+            "En développement local, préférez Firebase Auth Emulator, ou définissez " +
+            "explicitement ALLOW_DEV_UNVERIFIED_TOKENS=true (JAMAIS sur un serveur exposé)."
+        );
+        return null;
+      }
+
+      // Dev local opt-in uniquement : décodage SANS vérification de signature.
       const parts = token.split(".");
       if (parts.length !== 3) return null;
-      
+
       const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString());
-      
+
       // Basic validation: check expiration
       if (payload.exp && payload.exp * 1000 < Date.now()) {
         return null;
       }
-      
+
       return payload;
     }
-    
-    // Production: Full verification
+
+    // Production: Full cryptographic verification
     return await adminAuth.verifyIdToken(token);
   } catch (error) {
     console.error("Token verification failed:", error);

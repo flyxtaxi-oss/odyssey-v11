@@ -1,0 +1,28 @@
+#!/usr/bin/env sh
+# ==============================================================================
+# PRE-PUSH — les portes qualité, avant que le code sorte de la machine
+# ==============================================================================
+#
+# Ces vérifications sont ici plutôt qu'au commit parce qu'elles coûtent ~15 s :
+# au commit elles pousseraient à `--no-verify`, ce qui désactiverait aussi le
+# blocage des secrets. Avant un push, en revanche, l'attente est justifiée —
+# c'est le moment où le code devient celui des autres et déclenche la CI.
+#
+# Mêmes portes que la CI, dans le même ordre : un échec est vu ici, pas dans un
+# run rouge dix minutes plus tard.
+#
+# Urgence : git push --no-verify
+
+set -e
+
+echo "→ typecheck…"
+npm run typecheck --silent
+
+echo "→ eslint…"
+npm run lint --silent
+
+echo "→ tests…"
+npm test --silent
+
+echo "✅ pre-push OK — mêmes portes que la CI"
+echo "   (les règles Firestore ne sont pas rejouées ici : npm run test:rules)"

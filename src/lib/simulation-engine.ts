@@ -157,6 +157,47 @@ const AGENT_TEMPLATES: Record<AgentType, { names: string[]; personalities: strin
 
 // ─── Simulation Engine ───────────────────────────────────────────────────────
 
+/**
+ * Deterministic PRNG (mulberry32) — small, fast, well-distributed.
+ *
+ * The engine used to call Math.random() directly, which meant the same user,
+ * the same destination and the same inputs produced a DIFFERENT life score on
+ * every run. A projection that changes each time you ask it is not a
+ * projection, and it is impossible to support: a user who screenshots "73/100"
+ * and re-runs it sees 61 and reasonably concludes the product is broken.
+ *
+ * Seeding from the inputs makes the model reproducible: identical inputs always
+ * yield an identical result, and changing one input changes the outcome in a
+ * way that can be explained.
+ */
+function mulberry32(a: number): () => number {
+  return function () {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Stable 32-bit hash of the simulation inputs (FNV-1a). */
+function hashSeed(seed: SimulationSeed): number {
+  const canonical = JSON.stringify({
+    destination: seed.destination,
+    scenario: seed.scenario,
+    rounds: seed.rounds,
+    horizon: seed.time_horizon,
+    profile: seed.user_profile,
+  });
+
+  let h = 0x811c9dc5;
+  for (let i = 0; i < canonical.length; i++) {
+    h ^= canonical.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+}
+
 export class SimulationEngine {
   private agents: Agent[] = [];
   private rounds: SimulationRound[] = [];
@@ -164,8 +205,12 @@ export class SimulationEngine {
   private seed: SimulationSeed;
   private currentRound = 0;
 
+  /** Seeded source of randomness. Never use Math.random() in this class. */
+  private random: () => number;
+
   constructor(seed: SimulationSeed) {
     this.seed = seed;
+    this.random = mulberry32(hashSeed(seed));
     this.state = this.initializeState(seed);
   }
 
@@ -209,7 +254,7 @@ export class SimulationEngine {
           personality: template.personalities[i % template.personalities.length],
           goals: [...template.goals],
           memory: [],
-          influence: 0.5 + Math.random() * 0.5,
+          influence: 0.5 + this.random() * 0.5,
         });
       }
     }
@@ -314,7 +359,7 @@ export class SimulationEngine {
     }
 
     // Random events
-    if (Math.random() > 0.6) {
+    if (this.random() > 0.6) {
       const randomEvents = [
         { type: 'networking_event', desc: 'Événement networking local', impact: 0.2 },
         { type: 'language_milestone', desc: 'Progression significative en langue locale', impact: 0.3 },
@@ -323,7 +368,7 @@ export class SimulationEngine {
         { type: 'market_shift', desc: 'Évolution du marché du travail local', impact: 0.3 },
         { type: 'community_invite', desc: 'Invitation dans un groupe communautaire', impact: 0.25 },
       ];
-      const evt = randomEvents[Math.floor(Math.random() * randomEvents.length)];
+      const evt = randomEvents[Math.floor(this.random() * randomEvents.length)];
       events.push({
         id: `evt_random_${round}`,
         type: evt.type,
@@ -337,15 +382,15 @@ export class SimulationEngine {
     return events;
   }
 
-  private generateInteractions(round: number): AgentInteraction[] {
+  private generateInteractions(_round: number): AgentInteraction[] {
     const interactions: AgentInteraction[] = [];
     const numInteractions = Math.min(5, Math.floor(this.agents.length / 3));
 
     for (let i = 0; i < numInteractions; i++) {
-      const agentA = this.agents[Math.floor(Math.random() * this.agents.length)];
-      let agentB = this.agents[Math.floor(Math.random() * this.agents.length)];
+      const agentA = this.agents[Math.floor(this.random() * this.agents.length)];
+      let agentB = this.agents[Math.floor(this.random() * this.agents.length)];
       while (agentB.id === agentA.id) {
-        agentB = this.agents[Math.floor(Math.random() * this.agents.length)];
+        agentB = this.agents[Math.floor(this.random() * this.agents.length)];
       }
 
       const interactionTypes = [
@@ -355,10 +400,10 @@ export class SimulationEngine {
         { type: 'mentorship', outcomes: ['guidance carrière', 'conseil intégration', 'support administratif'] },
       ];
 
-      const interaction = interactionTypes[Math.floor(Math.random() * interactionTypes.length)];
-      const outcome = interaction.outcomes[Math.floor(Math.random() * interaction.outcomes.length)];
+      const interaction = interactionTypes[Math.floor(this.random() * interactionTypes.length)];
+      const outcome = interaction.outcomes[Math.floor(this.random() * interaction.outcomes.length)];
       const sentiment: 'positive' | 'neutral' | 'negative' =
-        Math.random() > 0.3 ? 'positive' : Math.random() > 0.5 ? 'neutral' : 'negative';
+        this.random() > 0.3 ? 'positive' : this.random() > 0.5 ? 'neutral' : 'negative';
 
       interactions.push({
         agent_a: agentA.id,
@@ -374,7 +419,7 @@ export class SimulationEngine {
 
   private updateState(events: SimulationEvent[], interactions: AgentInteraction[]): void {
     for (const event of events) {
-      const impact = event.impact * (Math.random() > 0.5 ? 1 : -0.5);
+      const impact = event.impact * (this.random() > 0.5 ? 1 : -0.5);
       this.state.happiness = Math.max(0, Math.min(100, this.state.happiness + impact * 3));
       this.state.financial_health = Math.max(0, Math.min(100, this.state.financial_health + impact * 2));
     }

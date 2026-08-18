@@ -48,7 +48,7 @@ async function main() {
       projectId = projectId || execSync('gcloud config get-value project', { encoding: 'utf8' }).trim();
       accessToken = accessToken || execSync('gcloud auth application-default print-access-token', { encoding: 'utf8' }).trim();
       console.log(`✅ Authenticated via gcloud (project: ${projectId})`);
-    } catch (e) {
+    } catch {
       console.error("⚠️ Run: gcloud auth application-default login");
       process.exit(1);
     }
@@ -119,7 +119,7 @@ async function main() {
     }
 
     console.log(`\n🎉 Done! Files saved to src/components/generated/`);
-    try { await client.close(); } catch (e) {}
+    try { await client.close(); } catch { /* fermeture best-effort */ }
 
   } catch (err) {
     console.error("\n❌ Stitch error:", err.message || err);
